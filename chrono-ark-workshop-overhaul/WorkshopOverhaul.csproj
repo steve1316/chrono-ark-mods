@@ -4,7 +4,7 @@
     <AssemblyName>WorkshopOverhaul</AssemblyName>
     <RootNamespace>WorkshopOverhaul</RootNamespace>
     <LangVersion>latest</LangVersion>
-    <OutputPath>bin\Debug\</OutputPath>
+    <OutputPath>..\bin\Debug\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
   </PropertyGroup>
