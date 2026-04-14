@@ -1,0 +1,18 @@
+{
+    "id": "GameplayEnhancements",
+    "Title": "Gameplay Enhancements",
+    "Author": "steve1316",
+    "Description": "Performance and quality-of-life improvements for general gameplay. Pre-loads Encyclopedia skill data to eliminate hangs when browsing modded characters.",
+    "Version": "1.0.0",
+    "Cover": "",
+    "ModSettingEntries": [],
+    "DefaultAssetBundlePath": "",
+    "Dependencies": [],
+    "NeedRestartWhenSettingChanged": false,
+    "NeedReloadAllWhenEnabled": false,
+    "NeedRestartWhenEnabled": true,
+    "Uploader": "steve1316",
+    "TagList": ["QoL"],
+    "Visibility": "Public",
+    "OnlyUploadFiles": true
+}
