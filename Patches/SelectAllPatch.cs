@@ -341,4 +341,131 @@ namespace WorkshopOverhaul.Patches
             SelectAllPatch.RefreshSelectAllState(__instance);
         }
     }
+
+    /// <summary>
+    /// Shared state and logic for shift-click range selection. Both body clicks
+    /// and checkbox clicks feed into this to track the anchor and apply ranges.
+    /// </summary>
+    internal static class ShiftClickRange
+    {
+        internal static string AnchorModId;
+
+        /// <summary>
+        /// Returns true if shift is held and an anchor exists.
+        /// </summary>
+        internal static bool ShouldDoRange()
+        {
+            return (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+                && !string.IsNullOrEmpty(AnchorModId);
+        }
+
+        /// <summary>
+        /// Enables or disables all mods between two positions in the visible list.
+        /// Updates the anchor to the target so successive shift-clicks chain.
+        /// </summary>
+        internal static void SetRange(ModUI instance, string fromId, string toId, bool enable)
+        {
+            AnchorModId = toId;
+            var visibleList = instance.ModscrolLElementsList_NowShow;
+            int fromIndex = visibleList.IndexOf(fromId);
+            int toIndex = visibleList.IndexOf(toId);
+
+            // Anchor or target may have been filtered out.
+            if (fromIndex < 0 || toIndex < 0) return;
+
+            int start = Mathf.Min(fromIndex, toIndex);
+            int end = Mathf.Max(fromIndex, toIndex);
+
+            SelectAllPatch.UpdatingFromCode = true;
+            try
+            {
+                for (int i = start; i <= end; i++)
+                {
+                    string modId = visibleList[i];
+                    if (!instance.ModscrolLElements.TryGetValue(modId, out var element))
+                        continue;
+
+                    if (ModManager.IsModEnabled(modId) == enable)
+                        continue;
+
+                    ModManager.SetModEnabled(modId, enable);
+
+                    // Swap listener to avoid the mid-loop EnabledMods rebuild
+                    // that ModUI.SetModEnabled would trigger.
+                    element.isEnabledTog.onValueChanged.RemoveAllListeners();
+                    element.isEnabledTog.isOn = enable;
+                    element.CheckObj.SetActive(enable);
+
+                    string capturedModId = modId;
+                    element.isEnabledTog.onValueChanged.AddListener(delegate(bool isOn)
+                    {
+                        UnityEngine.Debug.Log(capturedModId + isOn);
+                        instance.SetModEnabled(capturedModId, isOn);
+                        instance.OnModsScrollItemClicked(element.modInfo.id);
+                        element.CheckObj.SetActive(isOn);
+                    });
+                }
+
+                // Sync the detail panel buttons for the current selection.
+                bool selectedEnabled = ModManager.EnabledMods.Contains(instance._curModId);
+                instance.EnableBtn.gameObject.SetActive(!selectedEnabled);
+                instance.DisableBtn.gameObject.SetActive(selectedEnabled);
+
+                instance.AlignUpdate();
+                instance.ApplyBtn.gameObject.SetActive(true);
+            }
+            finally
+            {
+                SelectAllPatch.UpdatingFromCode = false;
+            }
+
+            SelectAllPatch.RefreshSelectAllState(instance);
+            instance.OnModsScrollItemClicked(toId);
+        }
+    }
+
+    /// <summary>
+    /// Intercepts checkbox toggle clicks to support shift-click range selection.
+    /// Normal toggles record the anchor; shift-toggles apply the toggle
+    /// direction (enable/disable) across the range.
+    /// </summary>
+    [HarmonyPatch(typeof(ModUI), nameof(ModUI.SetModEnabled))]
+    internal static class ShiftClickTogglePatch
+    {
+        static bool Prefix(ModUI __instance, string modId, bool isEnabled)
+        {
+            if (SelectAllPatch.UpdatingFromCode) return true;
+
+            if (ShiftClickRange.ShouldDoRange())
+            {
+                ShiftClickRange.SetRange(__instance,
+                    ShiftClickRange.AnchorModId, modId, enable: isEnabled);
+                return false;
+            }
+
+            ShiftClickRange.AnchorModId = modId;
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Intercepts body clicks to support shift-click range selection.
+    /// Normal clicks record the anchor; shift-clicks enable the range.
+    /// </summary>
+    [HarmonyPatch(typeof(ModScrollElementScript), nameof(ModScrollElementScript.OnPointerClick))]
+    internal static class ShiftClickBodyPatch
+    {
+        static bool Prefix(ModScrollElementScript __instance)
+        {
+            if (ShiftClickRange.ShouldDoRange())
+            {
+                ShiftClickRange.SetRange(__instance.Main,
+                    ShiftClickRange.AnchorModId, __instance.modInfo.id, enable: true);
+                return false;
+            }
+
+            ShiftClickRange.AnchorModId = __instance.modInfo.id;
+            return true;
+        }
+    }
 }
