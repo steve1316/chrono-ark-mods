@@ -27,9 +27,13 @@ namespace WorkshopOverhaul.Patches
         private static Toggle _selectAllToggle;
         private static bool _repositioned;
 
+        // Guard flag: prevents recursive callbacks when we programmatically
+        // change toggle states (e.g. batch select, or syncing the Select All
+        // checkbox after an individual mod toggle).
         internal static bool UpdatingFromCode;
 
-        // Cached sprites from the game's checkbox prefab.
+        // Cloned from ModScrollElementPrefab at runtime so our checkbox
+        // matches the game's visual style without shipping sprite assets.
         private static Sprite _boxSprite;
         private static Sprite _checkSprite;
 
@@ -41,6 +45,10 @@ namespace WorkshopOverhaul.Patches
             RefreshSelectAllState(__instance);
         }
 
+        /// <summary>
+        /// Reads the Box_ and Check sprites from the game's mod list prefab
+        /// so our toggle matches the existing checkbox style.
+        /// </summary>
         private static void CacheSprites(ModUI instance)
         {
             if (_boxSprite != null) return;
@@ -64,6 +72,11 @@ namespace WorkshopOverhaul.Patches
             }
         }
 
+        /// <summary>
+        /// The game's UI uses absolute positioning with no layout groups.
+        /// We shift Search and Tag right to make room for our toggle, and
+        /// detach their "Name" child labels to float above each field.
+        /// </summary>
         private static void RepositionExistingElements(ModUI instance)
         {
             if (_repositioned) return;
@@ -135,6 +148,10 @@ namespace WorkshopOverhaul.Patches
             }
         }
 
+        /// <summary>
+        /// Builds the Select All checkbox and its label programmatically.
+        /// Only runs once; subsequent calls refresh state instead.
+        /// </summary>
         private static void CreateSelectAllToggle(ModUI instance)
         {
             if (_selectAllGo != null)
@@ -225,12 +242,17 @@ namespace WorkshopOverhaul.Patches
             });
         }
 
+        /// <summary>
+        /// Batch enables or disables all currently visible (filtered) mods.
+        /// </summary>
         private static void ToggleAllVisible(ModUI instance, bool enable)
         {
             UpdatingFromCode = true;
 
             try
             {
+                // Snapshot: the cached list may be invalidated during iteration
+                // as we modify enable states and trigger AlignUpdate.
                 var visibleMods = new List<string>(instance.ModscrolLElementsList_NowShow);
 
                 foreach (string modId in visibleMods)
@@ -244,11 +266,14 @@ namespace WorkshopOverhaul.Patches
 
                     ModManager.SetModEnabled(modId, enable);
 
-                    // Suppress the toggle's listener, set value, re-register.
+                    // Each toggle's listener calls SetModEnabled + RefreshEnableChangeState,
+                    // which rebuilds EnabledMods mid-loop and discards unprocessed mods.
+                    // Remove listener before setting isOn, re-register after.
                     element.isEnabledTog.onValueChanged.RemoveAllListeners();
                     element.isEnabledTog.isOn = enable;
                     element.CheckObj.SetActive(enable);
 
+                    // Re-register the same listener that ModScrollElementScript.Set() creates.
                     string capturedModId = modId;
                     element.isEnabledTog.onValueChanged.AddListener(delegate(bool isOn)
                     {
@@ -259,10 +284,14 @@ namespace WorkshopOverhaul.Patches
                     });
                 }
 
+                // Sync the Enable/Disable buttons for whichever mod is currently
+                // selected in the detail panel on the right side.
                 bool selectedEnabled = ModManager.EnabledMods.Contains(instance._curModId);
                 instance.EnableBtn.gameObject.SetActive(!selectedEnabled);
                 instance.DisableBtn.gameObject.SetActive(selectedEnabled);
 
+                // Refresh the mod list visuals and show the Apply button
+                // so the user can commit the batch change.
                 instance.AlignUpdate();
                 instance.ApplyBtn.gameObject.SetActive(true);
             }
@@ -272,6 +301,11 @@ namespace WorkshopOverhaul.Patches
             }
         }
 
+        /// <summary>
+        /// Syncs the Select All checkbox to reflect current state:
+        /// checked only if every visible (filtered) mod is enabled.
+        /// Called after individual toggles and after batch operations.
+        /// </summary>
         public static void RefreshSelectAllState(ModUI instance)
         {
             if (_selectAllToggle == null) return;
@@ -287,12 +321,17 @@ namespace WorkshopOverhaul.Patches
                 }
             }
 
+            // Set the toggle without triggering ToggleAllVisible.
             UpdatingFromCode = true;
             _selectAllToggle.isOn = allEnabled;
             UpdatingFromCode = false;
         }
     }
 
+    /// <summary>
+    /// Keeps the Select All checkbox in sync when individual mods are toggled.
+    /// Skipped during batch operations to avoid redundant recalculation.
+    /// </summary>
     [HarmonyPatch(typeof(ModUI), nameof(ModUI.SetModEnabled))]
     internal static class RefreshSelectAllOnToggle
     {

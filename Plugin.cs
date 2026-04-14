@@ -9,6 +9,9 @@ namespace WorkshopOverhaul
         internal static Plugin Instance;
         internal static Harmony HarmonyInstance;
 
+        /// <summary>
+        /// Applies all Harmony patches when the mod is loaded.
+        /// </summary>
         public override void Initialize()
         {
             Instance = this;
@@ -17,6 +20,9 @@ namespace WorkshopOverhaul
             Debug.Log("[WorkshopOverhaul] Patches applied successfully");
         }
 
+        /// <summary>
+        /// Removes all Harmony patches when the mod is unloaded.
+        /// </summary>
         public override void Dispose()
         {
             HarmonyInstance?.UnpatchSelf();
