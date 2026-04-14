@@ -37,7 +37,7 @@ namespace WorkshopOverhaul.Patches
     [HarmonyPatch(typeof(RecordViewScroll), "Update")]
     internal static class SmoothScrollPatch
     {
-        static bool Prefix(RecordViewScroll __instance, bool ___On, ref float ___FirstYPos, ref float ___LastYPos)
+        static bool Prefix(RecordViewScroll __instance, bool ___On)
         {
             if (!___On) return false;
 
@@ -61,27 +61,6 @@ namespace WorkshopOverhaul.Patches
                             Mathf.Clamp01(__instance.Main.verticalScrollbar.value + axis * normalizedStep * 10f);
                     }
                 }
-            }
-
-            // Drag handling (unchanged from original).
-            if (Input.GetMouseButtonDown(0))
-            {
-                ___FirstYPos = Input.mousePosition.y;
-            }
-            if (Input.GetMouseButton(0))
-            {
-                if (___FirstYPos == 0f) return false;
-                ___LastYPos = Input.mousePosition.y;
-                float delta = ___LastYPos - ___FirstYPos;
-                if (delta > 10f || delta < -10f)
-                {
-                    __instance.Main.verticalScrollbar.value += -delta / __instance.scrollPadding;
-                }
-            }
-            if (Input.GetMouseButtonUp(0))
-            {
-                ___FirstYPos = 0f;
-                ___LastYPos = 0f;
             }
 
             return false;
