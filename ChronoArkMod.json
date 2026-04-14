@@ -1,0 +1,18 @@
+{
+    "id": "WorkshopOverhaul",
+    "Title": "Workshop Screen Overhaul",
+    "Author": "steve1316",
+    "Description": "Performance improvements for the Workshop mod management screen. Reduces lag when opening, scrolling, and applying mod changes.",
+    "Version": "0.1.0",
+    "Cover": "",
+    "ModSettingEntries": [],
+    "DefaultAssetBundlePath": "",
+    "Dependencies": [],
+    "NeedRestartWhenSettingChanged": false,
+    "NeedReloadAllWhenEnabled": false,
+    "NeedRestartWhenEnabled": true,
+    "Uploader": "steve1316",
+    "TagList": ["QoL"],
+    "Visibility": "Public",
+    "OnlyUploadFiles": true
+}
