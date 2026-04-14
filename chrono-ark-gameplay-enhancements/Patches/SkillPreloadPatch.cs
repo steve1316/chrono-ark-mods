@@ -3,16 +3,17 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using HarmonyLib;
+using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 using Debug = UnityEngine.Debug;
 
 namespace GameplayEnhancements.Patches
 {
     /// <summary>
-    /// Pre-loads skill data for all characters in the background when the
-    /// Encyclopedia's Skill tab initializes. Each character's SkillAdd runs
-    /// on a separate frame so the UI stays responsive. By the time the user
-    /// clicks a modded character, its skills are already instantiated.
+    /// Pre-loads skill data for all characters when the Encyclopedia's Skill
+    /// tab initializes. Runs synchronously during the Encyclopedia's own
+    /// init hang so there's only one wait instead of two.
     /// </summary>
     [HarmonyPatch(typeof(SKillCollection), "Start")]
     internal static class SkillPreloadPatch
@@ -24,26 +25,24 @@ namespace GameplayEnhancements.Patches
             _skillAddMethod = AccessTools.Method(typeof(SKillCollection), "SkillAdd");
             if (_skillAddMethod == null)
             {
-                Debug.LogWarning("[WorkshopOverhaul] Could not find SKillCollection.SkillAdd method");
+                Debug.LogWarning("[GameplayEnhancements] Could not find SKillCollection.SkillAdd method");
                 return;
             }
 
-            // Start on Collections.Main (the parent UI) which stays active,
-            // because SKillCollection deactivates itself at the end of Start().
+            // Run on the parent Collections object which stays active
+            // (SKillCollection deactivates itself at the end of Start).
             var collections = __instance.GetComponentInParent<Collections>();
             if (collections != null)
                 collections.StartCoroutine(PreloadAllCharacters(__instance));
-            else
-                Debug.LogWarning("[WorkshopOverhaul] Could not find Collections parent for preload coroutine");
         }
 
         /// <summary>
-        /// Iterates all characters and calls SkillAdd for each unloaded one,
-        /// yielding a frame between each to keep the UI responsive.
+        /// Iterates all characters and calls SkillAdd for each unloaded one.
+        /// Yields a frame between each to avoid choking Unity's layout system
+        /// with hundreds of skill prefab GameObjects created at once.
         /// </summary>
         private static IEnumerator PreloadAllCharacters(SKillCollection instance)
         {
-            // Wait a frame for Init/Start to fully complete.
             yield return null;
 
             var alignChar = Traverse.Create(instance).Field("Align_Char")
@@ -51,6 +50,7 @@ namespace GameplayEnhancements.Patches
             if (alignChar == null) yield break;
 
             var sw = new Stopwatch();
+            long totalMs = 0;
             int preloaded = 0;
 
             foreach (var charGo in alignChar)
@@ -63,16 +63,112 @@ namespace GameplayEnhancements.Patches
                 _skillAddMethod.Invoke(instance, new object[] { charSelect.Key });
                 charSelect.isLoad = true;
                 sw.Stop();
-
-                if (sw.ElapsedMilliseconds > 5)
-                    Debug.Log($"[WorkshopOverhaul] Preloaded skills for '{charSelect.Key}': {sw.ElapsedMilliseconds}ms");
-
+                totalMs += sw.ElapsedMilliseconds;
                 preloaded++;
                 yield return null;
             }
 
             if (preloaded > 0)
-                Debug.Log($"[WorkshopOverhaul] Skill preload complete: {preloaded} characters");
+                Debug.Log($"[GameplayEnhancements] Skill preload complete: {preloaded} characters in {totalMs}ms");
+        }
+    }
+
+    /// <summary>
+    /// Wraps CharSelect_CampUI.OpenProfile() in a coroutine that shows a
+    /// progress overlay before instantiating the Encyclopedia UI. This covers
+    /// the hang from Addressable loading + Collections.Start() + skill preload.
+    /// </summary>
+    [HarmonyPatch(typeof(CharSelect_CampUI), nameof(CharSelect_CampUI.OpenProfile))]
+    internal static class OpenProfileOverlayPatch
+    {
+        static bool Prefix(CharSelect_CampUI __instance)
+        {
+            __instance.StartCoroutine(OpenProfileWithOverlay(__instance));
+            return false;
+        }
+
+        private static IEnumerator OpenProfileWithOverlay(CharSelect_CampUI instance)
+        {
+            // Show overlay before the heavy instantiation.
+            var overlay = ProgressOverlayHelper.Show("Loading character info...");
+            yield return null;
+
+            // Run the original OpenProfile logic.
+            Traverse.Create(instance).Field("CollectionOn").SetValue(true);
+            var obj = UIManager.InstantiateActiveAddressable(
+                UIManager.inst.AR_CollectionsUI,
+                AddressableLoadManager.ManageType.Collection);
+            var collections = obj.GetComponent<Collections>();
+            collections.cc.CharacterInfoOnName(instance.NowSelectedKey);
+            collections.IsOnce = true;
+            collections.DeleteAction = (System.Action)System.Delegate.Combine(
+                collections.DeleteAction,
+                new System.Action(() =>
+                {
+                    // Replicate SelectUIOn behavior via reflection.
+                    AccessTools.Method(typeof(CharSelect_CampUI), "SelectUIOn")
+                        ?.Invoke(instance, null);
+                }));
+            AccessTools.Method(typeof(CharSelect_CampUI), "SelectUIOff")
+                ?.Invoke(instance, null);
+
+            ProgressOverlayHelper.Hide(overlay);
+        }
+    }
+
+    /// <summary>
+    /// Reusable progress overlay helper for full-screen loading indicators.
+    /// </summary>
+    internal static class ProgressOverlayHelper
+    {
+        /// <summary>
+        /// Creates a full-screen dark overlay with a centered message.
+        /// </summary>
+        internal static GameObject Show(string message)
+        {
+            var overlayGo = new GameObject("ProgressOverlay");
+            Object.DontDestroyOnLoad(overlayGo);
+
+            var canvas = overlayGo.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 10000;
+            overlayGo.AddComponent<GraphicRaycaster>();
+
+            // Dark background.
+            var bgGo = new GameObject("Background");
+            bgGo.transform.SetParent(overlayGo.transform, false);
+            var bgImage = bgGo.AddComponent<Image>();
+            bgImage.color = new Color(0f, 0f, 0f, 0.9f);
+            var bgRt = bgGo.GetComponent<RectTransform>();
+            bgRt.anchorMin = Vector2.zero;
+            bgRt.anchorMax = Vector2.one;
+            bgRt.offsetMin = Vector2.zero;
+            bgRt.offsetMax = Vector2.zero;
+
+            // Message text.
+            var textGo = new GameObject("Message");
+            textGo.transform.SetParent(overlayGo.transform, false);
+            var tmp = textGo.AddComponent<TextMeshProUGUI>();
+            tmp.text = message;
+            tmp.fontSize = 32;
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.color = Color.white;
+            var textRt = textGo.GetComponent<RectTransform>();
+            textRt.anchorMin = new Vector2(0.2f, 0.4f);
+            textRt.anchorMax = new Vector2(0.8f, 0.6f);
+            textRt.offsetMin = Vector2.zero;
+            textRt.offsetMax = Vector2.zero;
+
+            return overlayGo;
+        }
+
+        /// <summary>
+        /// Destroys the overlay.
+        /// </summary>
+        internal static void Hide(GameObject overlay)
+        {
+            if (overlay != null)
+                Object.Destroy(overlay);
         }
     }
 }
