@@ -1,0 +1,21 @@
+{
+    "id": "ModEnglishTranslations",
+    "Title": "Mod English Translations",
+    "Author": "steve1316",
+    "Description": "Injects English translations for mod content at runtime. Reads keyed_overrides.json for localization key overrides and text_overrides.json for hardcoded CJK string replacements.",
+    "Version": "1.0.0",
+    "Cover": "",
+    "ModSettingEntries": [],
+    "DefaultAssetBundlePath": "",
+    "Dependencies": [],
+    "NeedRestartWhenSettingChanged": false,
+    "NeedReloadAllWhenEnabled": false,
+    "NeedRestartWhenEnabled": true,
+    "Uploader": "steve1316",
+    "TagList": [
+        "Localization",
+        "English"
+    ],
+    "Visibility": "Public",
+    "OnlyUploadFiles": true
+}

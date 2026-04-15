@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>ModEnglishTranslations</AssemblyName>
+    <RootNamespace>ModEnglishTranslations</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <OutputPath>bin\Debug\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <!-- Game paths: override via environment variable CHRONO_ARK_DIR if needed -->
+  <PropertyGroup>
+    <ChronoArkDir Condition="'$(ChronoArkDir)' == ''">F:\SteamLibrary\steamapps\common\Chrono Ark</ChronoArkDir>
+    <GameManagedDir>$(ChronoArkDir)\ChronoArk_Data\Managed</GameManagedDir>
+    <ModOutputDir>$(ChronoArkDir)\Mod\ModEnglishTranslations\Assemblies</ModOutputDir>
+  </PropertyGroup>
+
+  <!-- Game assemblies -->
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(GameManagedDir)\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp-firstpass">
+      <HintPath>$(GameManagedDir)\Assembly-CSharp-firstpass.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(GameManagedDir)\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(GameManagedDir)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Unity.TextMeshPro">
+      <HintPath>$(GameManagedDir)\Unity.TextMeshPro.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(GameManagedDir)\Newtonsoft.Json.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(GameManagedDir)\UnityEngine.UI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Harmony -->
+  <ItemGroup>
+    <Reference Include="0Harmony">
+      <HintPath>$(ChronoArkDir)\Mod\WorkshopOverhaul\Assemblies\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Copy output DLL and mod config to game mod folder after build -->
+  <Target Name="CopyToMod" AfterTargets="Build">
+    <Copy SourceFiles="$(OutputPath)ModEnglishTranslations.dll" DestinationFolder="$(ModOutputDir)" />
+    <Copy SourceFiles="ChronoArkMod.json" DestinationFolder="$(ModOutputDir)\.." />
+  </Target>
+</Project>
