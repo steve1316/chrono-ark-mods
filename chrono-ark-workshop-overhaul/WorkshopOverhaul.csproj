@@ -72,8 +72,9 @@
     </Reference>
   </ItemGroup>
 
-  <!-- Copy output DLL to mod folder after build -->
+  <!-- Copy output DLL and mod config to game mod folder after build -->
   <Target Name="CopyToMod" AfterTargets="Build">
     <Copy SourceFiles="$(OutputPath)WorkshopOverhaul.dll" DestinationFolder="$(ModOutputDir)" />
+    <Copy SourceFiles="ChronoArkMod.json" DestinationFolder="$(ModOutputDir)\.." />
   </Target>
 </Project>
