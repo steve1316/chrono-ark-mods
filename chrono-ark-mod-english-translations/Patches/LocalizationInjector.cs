@@ -2,135 +2,147 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using HarmonyLib;
 using I2.Loc;
 using Newtonsoft.Json;
 using UnityEngine;
 
-
 namespace ModEnglishTranslations.Patches
 {
     /// <summary>
-    /// Injects English translations into I2.Loc's language source at runtime.
+    /// Intercepts I2.Loc term data lookups to inject English overrides.
+    /// Patches LanguageSourceData.GetTermData so that whenever the game
+    /// retrieves a term we have an override for, the English column is
+    /// set before the caller reads it.
     /// </summary>
     internal static class LocalizationInjector
     {
         private const string OverridesFileName = "keyed_overrides.json";
 
-        /// <summary>
-        /// Loads keyed overrides from JSON and injects them into the active language source.
-        /// </summary>
-        internal static void InjectTranslations()
-        {
-            var overrides = LoadKeyedOverrides();
-            if (overrides == null || overrides.Count == 0)
-            {
-                Debug.Log("[ModEnglishTranslations] No keyed overrides to inject");
-                return;
-            }
-
-            var source = GetPrimaryLanguageSource();
-            if (source == null)
-            {
-                Debug.LogWarning("[ModEnglishTranslations] No language source found, cannot inject");
-                return;
-            }
-
-            int englishIndex = source.GetLanguageIndex("English");
-            if (englishIndex < 0)
-            {
-                Debug.LogWarning("[ModEnglishTranslations] English language not found in source");
-                return;
-            }
-
-            int injected = 0;
-            int added = 0;
-
-            foreach (var kvp in overrides)
-            {
-                string key = kvp.Key;
-                string english = kvp.Value;
-
-                var termData = source.GetTermData(key);
-                if (termData != null)
-                {
-                    // Term exists, just set the English translation.
-                    termData.Languages[englishIndex] = english;
-                    injected++;
-                }
-                else
-                {
-                    // Term doesn't exist yet, add it.
-                    termData = source.AddTerm(key, eTermType.Text);
-                    if (termData != null)
-                    {
-                        termData.Languages[englishIndex] = english;
-                        added++;
-                    }
-                }
-            }
-
-            Debug.Log($"[ModEnglishTranslations] Injected {injected} overrides, added {added} new terms");
-        }
+        internal static Dictionary<string, string> Overrides = new Dictionary<string, string>();
+        private static int _englishIndex = -1;
 
         /// <summary>
-        /// Gets the first available language source from the localization manager.
+        /// Loads keyed overrides from JSON into memory.
         /// </summary>
-        private static LanguageSourceData GetPrimaryLanguageSource()
-        {
-            if (LocalizationManager.Sources == null || LocalizationManager.Sources.Count == 0)
-                return null;
-
-            return LocalizationManager.Sources[0];
-        }
-
-        /// <summary>
-        /// Loads the keyed overrides JSON from the mod directory.
-        /// </summary>
-        private static Dictionary<string, string> LoadKeyedOverrides()
+        internal static void LoadOverrides()
         {
             string jsonPath = GetModFilePath(OverridesFileName);
             if (jsonPath == null || !File.Exists(jsonPath))
             {
                 Debug.Log($"[ModEnglishTranslations] {OverridesFileName} not found");
-                return null;
+                return;
             }
 
             try
             {
                 string json = File.ReadAllText(jsonPath);
-                return JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
+                var loaded = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
+                if (loaded != null)
+                {
+                    Overrides = loaded;
+                    Debug.Log($"[ModEnglishTranslations] Loaded {Overrides.Count} keyed overrides");
+                }
             }
             catch (Exception ex)
             {
                 Debug.LogError($"[ModEnglishTranslations] Failed to load {OverridesFileName}: {ex.Message}");
-                return null;
+            }
+        }
+
+        /// <summary>
+        /// Patches LanguageSourceData.GetTermData to intercept term lookups.
+        /// </summary>
+        internal static void ApplyPatches(Harmony harmony)
+        {
+            if (Overrides.Count == 0)
+                return;
+
+            // Cache the English language index.
+            try
+            {
+                if (LocalizationManager.Sources != null && LocalizationManager.Sources.Count > 0)
+                {
+                    _englishIndex = LocalizationManager.Sources[0].GetLanguageIndex("English");
+                    Debug.Log($"[ModEnglishTranslations] English language index: {_englishIndex}");
+                }
+            }
+            catch (Exception)
+            {
+                // Will try to resolve lazily in the postfix.
+            }
+
+            var postfix = new HarmonyMethod(typeof(LocalizationInjector), nameof(GetTermDataPostfix));
+
+            // Patch all GetTermData overloads on LanguageSourceData.
+            try
+            {
+                var methods = AccessTools.GetDeclaredMethods(typeof(LanguageSourceData))
+                    .FindAll(m => m.Name == "GetTermData");
+
+                foreach (var method in methods)
+                {
+                    try
+                    {
+                        harmony.Patch(method, postfix: postfix);
+                        Debug.Log($"[ModEnglishTranslations] Patched LanguageSourceData.GetTermData ({method.GetParameters().Length} params)");
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning($"[ModEnglishTranslations] Failed to patch GetTermData: {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[ModEnglishTranslations] Could not find GetTermData: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Postfix for GetTermData: when the game retrieves a term we have
+        /// an override for, set the English column on the returned TermData.
+        /// </summary>
+        static void GetTermDataPostfix(string term, ref TermData __result, LanguageSourceData __instance)
+        {
+            if (__result == null || string.IsNullOrEmpty(term))
+                return;
+
+            if (!Overrides.TryGetValue(term, out string english))
+                return;
+
+            // Lazily resolve the English index if not cached yet.
+            if (_englishIndex < 0)
+            {
+                _englishIndex = __instance.GetLanguageIndex("English");
+                if (_englishIndex < 0)
+                    return;
+            }
+
+            if (_englishIndex < __result.Languages.Length)
+            {
+                __result.Languages[_englishIndex] = english;
             }
         }
 
         /// <summary>
         /// Resolves a filename to an absolute path in the mod's root directory.
-        /// Uses the game's StreamingAssets/Mod path, then falls back to assembly location.
         /// </summary>
         internal static string GetModFilePath(string fileName)
         {
-            // Primary: game's local Mod directory (one level above Application.dataPath).
             try
             {
                 string gameRoot = Path.GetDirectoryName(Application.dataPath);
                 string modDir = Path.Combine(gameRoot, "Mod", "ModEnglishTranslations");
                 string candidate = Path.Combine(modDir, fileName);
                 if (File.Exists(candidate))
-                {
-                    Debug.Log($"[ModEnglishTranslations] Found {fileName} at {candidate}");
                     return candidate;
-                }
             }
             catch (Exception)
             {
-                // StreamingAssets not available, fall through.
+                // Fall through.
             }
 
-            // Fallback: derive from DLL location (Assemblies/ -> mod root).
             try
             {
                 string asmLocation = Assembly.GetExecutingAssembly().Location;
@@ -140,10 +152,7 @@ namespace ModEnglishTranslations.Patches
                     string modDir = Path.GetDirectoryName(asmDir);
                     string candidate = Path.Combine(modDir, fileName);
                     if (File.Exists(candidate))
-                    {
-                        Debug.Log($"[ModEnglishTranslations] Found {fileName} at {candidate}");
                         return candidate;
-                    }
                 }
             }
             catch (Exception)

@@ -18,10 +18,11 @@ namespace ModEnglishTranslations
             Instance = this;
             HarmonyInstance = new Harmony("com.steve1316.modenglishtranslations");
 
-            LocalizationInjector.InjectTranslations();
+            LocalizationInjector.LoadOverrides();
             TextOverridePatch.LoadOverrides();
 
-            // Apply TMPro patches manually to handle missing methods gracefully.
+            // Apply all patches manually to handle missing methods gracefully.
+            LocalizationInjector.ApplyPatches(HarmonyInstance);
             TextOverridePatch.ApplyPatches(HarmonyInstance);
 
             Debug.Log("[ModEnglishTranslations] Patches applied successfully");
