@@ -2,10 +2,41 @@
     "id": "GameplayEnhancements",
     "Title": "Gameplay Enhancements",
     "Author": "steve1316",
-    "Description": "Performance and quality-of-life improvements for general gameplay. Pre-loads Encyclopedia skill data to eliminate hangs when browsing modded characters.",
+    "Description": "Performance and quality-of-life improvements for general gameplay. Pre-loads Encyclopedia skill data to eliminate hangs when browsing modded characters. Configurable starting Mana, Gold, and Soulstones for new runs.",
     "Version": "1.0.0",
     "Cover": "",
-    "ModSettingEntries": [],
+    "ModSettingEntries": [
+        {
+            "SettingType": "SliderSetting",
+            "SettingKey": "StartingMana",
+            "DisplayName": "Starting Mana",
+            "Description": "Mana (AP) at the start of a new run.",
+            "InitValue": 3,
+            "Min": 1,
+            "Max": 10,
+            "StepSize": 1
+        },
+        {
+            "SettingType": "SliderSetting",
+            "SettingKey": "StartingGold",
+            "DisplayName": "Starting Gold",
+            "Description": "Gold at the start of a new run.",
+            "InitValue": 0,
+            "Min": 0,
+            "Max": 1000,
+            "StepSize": 50
+        },
+        {
+            "SettingType": "SliderSetting",
+            "SettingKey": "StartingSoulstones",
+            "DisplayName": "Starting Soulstones",
+            "Description": "Soulstones at the start of a new run.",
+            "InitValue": 0,
+            "Min": 0,
+            "Max": 25,
+            "StepSize": 1
+        }
+    ],
     "DefaultAssetBundlePath": "",
     "Dependencies": [],
     "NeedRestartWhenSettingChanged": false,
