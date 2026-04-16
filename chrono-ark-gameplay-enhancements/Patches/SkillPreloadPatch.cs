@@ -49,9 +49,15 @@ namespace GameplayEnhancements.Patches
         }
 
         /// <summary>
+        /// Maximum milliseconds of work per frame before yielding. Keeps
+        /// the overlay responsive while minimizing total preload time.
+        /// </summary>
+        private const long FrameBudgetMs = 200;
+
+        /// <summary>
         /// Iterates all characters and calls SkillAdd for each unloaded one.
-        /// Yields a frame between each to avoid choking Unity's layout system
-        /// with hundreds of skill prefab GameObjects created at once.
+        /// Uses adaptive batching: processes multiple characters per frame
+        /// as long as the cumulative time stays under the frame budget.
         /// </summary>
         private static IEnumerator PreloadAllCharacters(SKillCollection instance)
         {
@@ -73,9 +79,11 @@ namespace GameplayEnhancements.Patches
             PreloadCurrent = 0;
 
             var sw = new Stopwatch();
+            var frameSw = new Stopwatch();
             long totalMs = 0;
             int preloaded = 0;
 
+            frameSw.Start();
             foreach (var charGo in alignChar)
             {
                 var charSelect = charGo.GetComponent<Skill_CharSelect>();
@@ -91,7 +99,13 @@ namespace GameplayEnhancements.Patches
                 sw.Stop();
                 totalMs += sw.ElapsedMilliseconds;
                 preloaded++;
-                yield return null;
+
+                // Yield when the frame budget is exceeded, then reset.
+                if (frameSw.ElapsedMilliseconds >= FrameBudgetMs)
+                {
+                    yield return null;
+                    frameSw.Restart();
+                }
             }
 
             if (preloaded > 0)
