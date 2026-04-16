@@ -1,4 +1,6 @@
 using ChronoArkMod.Plugin;
+using GameplayEnhancements.Patches;
+using GameplayEnhancements.PerfDebug;
 using HarmonyLib;
 using UnityEngine;
 
@@ -9,6 +11,8 @@ namespace GameplayEnhancements
         internal static Plugin Instance;
         internal static Harmony HarmonyInstance;
 
+        private GameObject _perfDebugGo;
+
         /// <summary>
         /// Applies all Harmony patches when the mod is loaded.
         /// </summary>
@@ -18,6 +22,30 @@ namespace GameplayEnhancements
             HarmonyInstance = new Harmony("com.steve1316.gameplayenhancements");
             HarmonyInstance.PatchAll(typeof(Plugin).Assembly);
             Debug.Log("[GameplayEnhancements] Patches applied successfully");
+
+            // PerfDebug: persistent frame-time monitor and scene tracker.
+            _perfDebugGo = new GameObject("PerfDebug_FrameMonitor");
+            Object.DontDestroyOnLoad(_perfDebugGo);
+            _perfDebugGo.AddComponent<FrameTimeMonitor>();
+            _perfDebugGo.AddComponent<SceneTransitionTracker>();
+
+            // Provide the cached collections overlay flow a coroutine host.
+            CachedCollectionsPatch.SetCoroutineHost(
+                _perfDebugGo.GetComponent<FrameTimeMonitor>());
+
+            // PerfDebug: all instrumentation is wrapped in try-catch so
+            // failures here never prevent the core mod from loading.
+            try
+            {
+                KnownMethodTimingPatches.ApplyAll(HarmonyInstance);
+                CollectionInitProbes.ApplyAll(HarmonyInstance);
+                DiscoveryPatches.ScanAssemblyForInterestingTypes();
+                DiscoveryPatches.PatchAllMonoBehaviourLifecycles(HarmonyInstance);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[GameplayEnhancements][PerfDebug] Init failed: {ex}");
+            }
         }
 
         /// <summary>
@@ -25,6 +53,9 @@ namespace GameplayEnhancements
         /// </summary>
         public override void Dispose()
         {
+            if (_perfDebugGo != null)
+                Object.Destroy(_perfDebugGo);
+
             HarmonyInstance?.UnpatchSelf();
             HarmonyInstance = null;
             Instance = null;

@@ -18,6 +18,18 @@ namespace GameplayEnhancements.Patches
     [HarmonyPatch(typeof(SKillCollection), "Start")]
     internal static class SkillPreloadPatch
     {
+        /// <summary>
+        /// True while the background skill preload coroutine is running.
+        /// </summary>
+        internal static bool IsPreloading;
+
+        /// <summary>
+        /// Current preload progress for overlay display.
+        /// </summary>
+        internal static int PreloadCurrent;
+        internal static int PreloadTotal;
+        internal static string PreloadCurrentName;
+
         private static MethodInfo _skillAddMethod;
 
         static void Postfix(SKillCollection __instance)
@@ -43,11 +55,22 @@ namespace GameplayEnhancements.Patches
         /// </summary>
         private static IEnumerator PreloadAllCharacters(SKillCollection instance)
         {
+            IsPreloading = true;
             yield return null;
 
             var alignChar = Traverse.Create(instance).Field("Align_Char")
                 .GetValue<List<GameObject>>();
             if (alignChar == null) yield break;
+
+            // Count how many characters need preloading.
+            int total = 0;
+            foreach (var go in alignChar)
+            {
+                var cs = go.GetComponent<Skill_CharSelect>();
+                if (cs != null && !cs.isLoad) total++;
+            }
+            PreloadTotal = total;
+            PreloadCurrent = 0;
 
             var sw = new Stopwatch();
             long totalMs = 0;
@@ -58,6 +81,9 @@ namespace GameplayEnhancements.Patches
                 var charSelect = charGo.GetComponent<Skill_CharSelect>();
                 if (charSelect == null || charSelect.isLoad)
                     continue;
+
+                PreloadCurrent = preloaded + 1;
+                PreloadCurrentName = charSelect.Key;
 
                 sw.Restart();
                 _skillAddMethod.Invoke(instance, new object[] { charSelect.Key });
@@ -70,6 +96,8 @@ namespace GameplayEnhancements.Patches
 
             if (preloaded > 0)
                 Debug.Log($"[GameplayEnhancements] Skill preload complete: {preloaded} characters in {totalMs}ms");
+
+            IsPreloading = false;
         }
     }
 
@@ -160,6 +188,16 @@ namespace GameplayEnhancements.Patches
             textRt.offsetMax = Vector2.zero;
 
             return overlayGo;
+        }
+
+        /// <summary>
+        /// Updates the overlay message text.
+        /// </summary>
+        internal static void UpdateMessage(GameObject overlay, string message)
+        {
+            if (overlay == null) return;
+            var tmp = overlay.GetComponentInChildren<TextMeshProUGUI>();
+            if (tmp != null) tmp.text = message;
         }
 
         /// <summary>
