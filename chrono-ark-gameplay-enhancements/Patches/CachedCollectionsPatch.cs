@@ -222,7 +222,11 @@ namespace GameplayEnhancements.Patches
                     var gpmType = AccessTools.TypeByName("GamepadManager");
                     gpmType?.GetField("LayoutStop")?.SetValue(null, false);
 
-                    // 5. Cache.
+                    // 5. Destroy any floating tooltips that reference Collections.
+                    try { AccessTools.Method("ToolTipWindow:ToolTipDestroy")?.Invoke(null, null); }
+                    catch { /* Non-critical. */ }
+
+                    // 6. Cache.
                     _cached = collections;
 
                     Debug.Log($"{Tag} Cached Collections UI → " +

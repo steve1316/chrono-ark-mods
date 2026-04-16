@@ -39,8 +39,9 @@ namespace GameplayEnhancements
             {
                 KnownMethodTimingPatches.ApplyAll(HarmonyInstance);
                 CollectionInitProbes.ApplyAll(HarmonyInstance);
+                // Discovery patching disabled — added 16s to startup and we've
+                // already identified all bottlenecks. Type scan kept for reference.
                 DiscoveryPatches.ScanAssemblyForInterestingTypes();
-                DiscoveryPatches.PatchAllMonoBehaviourLifecycles(HarmonyInstance);
             }
             catch (System.Exception ex)
             {
