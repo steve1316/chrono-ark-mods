@@ -27,6 +27,11 @@ Override the default starting Mana, Gold, and Soulstones for new runs via mod se
 | Starting Gold | 0 - 1,000 | 0 |
 | Starting Soulstones | 0 - 25 | 0 |
 
+### Mod Compatibility Fixes
+
+- **Skill tooltip crash protection.** When a mod skill's tooltip rendering throws an exception (e.g., from outdated field references), the game normally leaves a broken tooltip permanently stuck on screen. This mod catches the exception, cleans up the orphaned tooltip, and lets the game continue. Originally discovered via the [Jefuty mod](https://steamcommunity.com/sharedfiles/filedetails/?id=3252036888) where hovering over the Miracle Declaration (神迹宣言) skill would freeze the tooltip on screen.
+- **Outdated buff graceful degradation.** Mod buffs compiled against older game versions may reference fields that have since been renamed or retyped (e.g., `Stat.PlusMPUse` changed from `int` to a `PlusMP` class). Instead of crashing, the buff is created as a plain `Buff` with correct data but without the broken subclass's stat modifications.
+
 ### Performance Debug Instrumentation
 
 Built-in debug tooling for profiling game performance (always active but low overhead):

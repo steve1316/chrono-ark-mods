@@ -2,7 +2,7 @@
 
 ## Architecture
 
-The mod has two functional areas: **Collections UI performance** (4 patch files) and **starting stats** (1 patch file), plus a **PerfDebug** instrumentation framework (5 files).
+The mod has three functional areas: **Collections UI performance** (4 patch files), **mod compatibility fixes** (1 patch file), and **starting stats** (1 patch file), plus a **PerfDebug** instrumentation framework (5 files).
 
 ## Problems and Solutions
 
@@ -69,6 +69,20 @@ The original `Collections.ESC()` has conditional tooltip cleanup for Character a
 
 **Fix:** Explicitly call `ToolTipWindow.ToolTipDestroy()` in `DestroyOrCache` after caching.
 
+### Problem: Mod skill tooltip permanently stuck on screen
+
+Hovering over certain mod skills (e.g., Jefuty's Miracle Declaration / 神迹宣言) caused a broken tooltip to appear and never dismiss, requiring a game restart.
+
+**Root cause:** The game's `ToolTipWindow.SkillToolTip()` instantiates a tooltip GameObject, calls `SkillToolTip.Input()` to populate it, and only then assigns it to the static `ToolTip` field. If `Input()` throws, the GameObject is orphaned on screen and `ToolTipDestroy()` can never find it because `ToolTip` is still null.
+
+The specific crash was a `MissingFieldException: Field 'Stat.PlusMPUse' not found` thrown during `Buff.DataToBuff()` → `B_Jefuty_R1.Init()`. The Jefuty mod was compiled when `Stat.PlusMPUse` was an `int`, but the field was changed to a `PlusMP` class in a game update. This is a JIT-time failure — the runtime can't compile the method at all, so the exception is thrown at the virtual dispatch site in `DataToBuff`, not inside `Init()`.
+
+**Fix (two layers):**
+
+1. **`BuffDataToBuffPatch`** — Harmony Finalizer on `Buff.DataToBuff`. When a `MissingFieldException` or `MissingMethodException` is caught, creates a fallback plain `Buff` (not the broken mod subclass) with the same data fields. The tooltip renders with correct buff name, description, and duration, just without the subclass's custom stat modifications.
+
+2. **`SkillTooltipPatch`** — Harmony Finalizers on `ToolTipWindow.SkillToolTip` and `SkillToolTip_Collection`. If any unhandled exception escapes, the orphaned tooltip is found via `FindObjectOfType<SkillToolTip>()` and destroyed. This is a generic safety net for any tooltip crash, not just the Jefuty case.
+
 ## Patch Files
 
 ### CachedCollectionsPatch.cs
@@ -93,6 +107,13 @@ The original `Collections.ESC()` has conditional tooltip cleanup for Character a
 - `CharSelectMainUIV2.OpenProfile` (Prefix) — Wraps character select profile open in overlay coroutine via shared helper.
 
 **OpenProfileSharedHelper.OpenProfileShared:** Shared coroutine for both OpenProfile paths. If cache exists, reactivates, switches to Character tab (`SelectCategory(0)`), and navigates to the selected character (`CharacterInfoOnName`). Sets `IsOnce=true` and `DeleteAction` for proper close behavior. Waits for preload and frame settling behind overlay.
+
+### SkillTooltipPatch.cs
+
+**Harmony patches:**
+- `ToolTipWindow.SkillToolTip` (Finalizer) — Catches exceptions, destroys orphaned tooltip via `FindObjectOfType<SkillToolTip>()`, returns null.
+- `ToolTipWindow.SkillToolTip_Collection` (Finalizer) — Same safety net for the collection/encyclopedia variant.
+- `Buff.DataToBuff` (Finalizer) — Catches `MissingFieldException`/`MissingMethodException` from mod subclass JIT failures, creates a fallback plain `Buff` with the same data fields.
 
 ### StartingStatsPatch.cs
 
