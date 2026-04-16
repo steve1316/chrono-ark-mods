@@ -4,3 +4,4 @@
 4. Comments and docstrings end in periods for proper grammar and punctuation.
 5. Comments should explain *why*, not *what*. Focus on non-obvious reasoning: callback ordering, guard conditions, why something is done a specific way. Don't comment self-evident code.
 6. Keep comments short (1-2 lines). All methods need a `/// <summary>` block.
+7. Decompiled game source (Assembly-CSharp.dll) is in `decompiled/` (gitignored). Grep it directly instead of running ilspycmd repeatedly.
