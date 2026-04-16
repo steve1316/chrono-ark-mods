@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using GameDataEditor;
 using HarmonyLib;
 using I2.Loc;
 using Newtonsoft.Json;
@@ -10,17 +11,16 @@ using UnityEngine;
 namespace ModTranslationInjector.Patches
 {
     /// <summary>
-    /// Intercepts I2.Loc term data lookups to inject English overrides.
-    /// Patches LanguageSourceData.GetTermData so that whenever the game
-    /// retrieves a term we have an override for, the English column is
-    /// set before the caller reads it.
+    /// Intercepts I2.Loc translation lookups to inject English overrides.
+    /// Patches LanguageSourceData.GetTranslation because the mod framework
+    /// calls it directly on each mod's own LanguageSourceData instance,
+    /// bypassing LocalizationManager entirely.
     /// </summary>
     internal static class LocalizationInjector
     {
         private const string OverridesFileName = "keyed_overrides.json";
 
         internal static Dictionary<string, string> Overrides = new Dictionary<string, string>();
-        private static int _englishIndex = -1;
 
         /// <summary>
         /// Loads keyed overrides from JSON into memory. The JSON is grouped
@@ -47,7 +47,7 @@ namespace ModTranslationInjector.Patches
                     foreach (var mod in grouped)
                     {
                         foreach (var entry in mod.Value)
-                            Overrides[entry.Key] = entry.Value;
+                            Overrides[NormalizeKey(entry.Key)] = entry.Value;
 
                         Debug.Log($"[ModTranslationInjector] Loaded {mod.Value.Count} keyed overrides from '{mod.Key}'");
                     }
@@ -61,78 +61,120 @@ namespace ModTranslationInjector.Patches
         }
 
         /// <summary>
-        /// Patches LanguageSourceData.GetTermData to intercept term lookups.
+        /// Patches LanguageSourceData.GetTranslation to intercept the
+        /// per-instance translation calls the mod framework makes.
         /// </summary>
         internal static void ApplyPatches(Harmony harmony)
         {
             if (Overrides.Count == 0)
                 return;
 
-            // Cache the English language index.
+            // Patch GDEDataManager.Init to inject character names after mod data loads.
+            // Character names aren't in the LocalizeDataPool, so they bypass
+            // GetTranslation entirely and must be written to GDE data directly.
             try
             {
-                if (LocalizationManager.Sources != null && LocalizationManager.Sources.Count > 0)
+                var initMethod = AccessTools.Method(typeof(GDEDataManager), "Init", new[] { typeof(bool) });
+                if (initMethod != null)
                 {
-                    _englishIndex = LocalizationManager.Sources[0].GetLanguageIndex("English");
-                    Debug.Log($"[ModTranslationInjector] English language index: {_englishIndex}");
+                    var postfix = new HarmonyMethod(typeof(LocalizationInjector), nameof(GDEInitPostfix));
+                    harmony.Patch(initMethod, postfix: postfix);
+                    Debug.Log("[ModTranslationInjector] Patched GDEDataManager.Init for character name overrides");
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Will try to resolve lazily in the postfix.
+                Debug.LogWarning($"[ModTranslationInjector] Failed to patch GDEDataManager.Init: {ex.Message}");
             }
 
-            var postfix = new HarmonyMethod(typeof(LocalizationInjector), nameof(GetTermDataPostfix));
-
-            // Patch all GetTermData overloads on LanguageSourceData.
+            // Patch all GetTranslation overloads on LanguageSourceData.
             try
             {
                 var methods = AccessTools.GetDeclaredMethods(typeof(LanguageSourceData))
-                    .FindAll(m => m.Name == "GetTermData");
+                    .FindAll(m => m.Name == "GetTranslation");
 
                 foreach (var method in methods)
                 {
                     try
                     {
-                        harmony.Patch(method, postfix: postfix);
-                        Debug.Log($"[ModTranslationInjector] Patched LanguageSourceData.GetTermData ({method.GetParameters().Length} params)");
+                        var prefix = new HarmonyMethod(typeof(LocalizationInjector),
+                            nameof(GetTranslationPrefix));
+                        harmony.Patch(method, prefix: prefix);
+                        Debug.Log($"[ModTranslationInjector] Patched LanguageSourceData.GetTranslation ({method.GetParameters().Length} params)");
                     }
                     catch (Exception ex)
                     {
-                        Debug.LogWarning($"[ModTranslationInjector] Failed to patch GetTermData: {ex.Message}");
+                        Debug.LogWarning($"[ModTranslationInjector] Failed to patch GetTranslation: {ex.Message}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[ModTranslationInjector] Could not find GetTermData: {ex.Message}");
+                Debug.LogWarning($"[ModTranslationInjector] Could not find GetTranslation: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// Postfix for GetTermData: when the game retrieves a term we have
-        /// an override for, set the English column on the returned TermData.
+        /// Prefix for LanguageSourceData.GetTranslation: returns our
+        /// override directly when the term matches a keyed override.
         /// </summary>
-        static void GetTermDataPostfix(string term, ref TermData __result, LanguageSourceData __instance)
+        static bool GetTranslationPrefix(string term, ref string __result)
         {
-            if (__result == null || string.IsNullOrEmpty(term))
-                return;
+            if (string.IsNullOrEmpty(term))
+                return true;
 
-            if (!Overrides.TryGetValue(term, out string english))
-                return;
-
-            // Lazily resolve the English index if not cached yet.
-            if (_englishIndex < 0)
+            if (Overrides.TryGetValue(term, out string english))
             {
-                _englishIndex = __instance.GetLanguageIndex("English");
-                if (_englishIndex < 0)
-                    return;
+                __result = english;
+                return false;
             }
 
-            if (_englishIndex < __result.Languages.Length)
+            return true;
+        }
+
+        /// <summary>
+        /// Postfix for GDEDataManager.Init: writes character name overrides
+        /// directly into GDE data. The game's LocalizeDataPool excludes the
+        /// name field from localization, so it must be set here instead.
+        /// </summary>
+        static void GDEInitPostfix()
+        {
+            int count = 0;
+            foreach (var kvp in Overrides)
             {
-                __result.Languages[_englishIndex] = english;
+                // Character name keys follow "Character/Key_Name" format.
+                if (!kvp.Key.StartsWith("Character/") || !kvp.Key.EndsWith("_Name"))
+                    continue;
+
+                // Extract GDE key: "Character/Jefuty_Name" -> "Jefuty".
+                string gdeKey = kvp.Key.Substring("Character/".Length,
+                    kvp.Key.Length - "Character/".Length - "_Name".Length);
+
+                try
+                {
+                    GDEDataManager.SetString(gdeKey, "name", kvp.Value);
+                    count++;
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"[ModTranslationInjector] Failed to set name for {gdeKey}: {ex.Message}");
+                }
             }
+
+            if (count > 0)
+                Debug.Log($"[ModTranslationInjector] Injected {count} character name overrides via GDE");
+        }
+
+        /// <summary>
+        /// Normalizes JSON keys to match the game's internal term format.
+        /// The game truncates some suffixes (e.g. "PassiveDesc" -> "PassiveDes").
+        /// </summary>
+        private static string NormalizeKey(string key)
+        {
+            if (key.EndsWith("_PassiveDesc"))
+                return key.Substring(0, key.Length - 1);
+
+            return key;
         }
 
         /// <summary>
