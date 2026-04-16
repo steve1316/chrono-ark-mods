@@ -1,9 +1,9 @@
 using ChronoArkMod.Plugin;
 using HarmonyLib;
-using ModEnglishTranslations.Patches;
+using ModTranslationInjector.Patches;
 using UnityEngine;
 
-namespace ModEnglishTranslations
+namespace ModTranslationInjector
 {
     public class Plugin : ChronoArkPlugin
     {
@@ -16,7 +16,7 @@ namespace ModEnglishTranslations
         public override void Initialize()
         {
             Instance = this;
-            HarmonyInstance = new Harmony("com.steve1316.modenglishtranslations");
+            HarmonyInstance = new Harmony("com.steve1316.modtranslationinjector");
 
             LocalizationInjector.LoadOverrides();
             TextOverridePatch.LoadOverrides();
@@ -25,7 +25,7 @@ namespace ModEnglishTranslations
             LocalizationInjector.ApplyPatches(HarmonyInstance);
             TextOverridePatch.ApplyPatches(HarmonyInstance);
 
-            Debug.Log("[ModEnglishTranslations] Patches applied successfully");
+            Debug.Log("[ModTranslationInjector] Patches applied successfully");
         }
 
         /// <summary>
@@ -36,7 +36,7 @@ namespace ModEnglishTranslations
             HarmonyInstance?.UnpatchSelf();
             HarmonyInstance = null;
             Instance = null;
-            Debug.Log("[ModEnglishTranslations] Patches removed");
+            Debug.Log("[ModTranslationInjector] Patches removed");
         }
     }
 }

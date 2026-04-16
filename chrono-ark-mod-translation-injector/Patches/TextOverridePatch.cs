@@ -8,7 +8,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace ModEnglishTranslations.Patches
+namespace ModTranslationInjector.Patches
 {
     /// <summary>
     /// Replaces hardcoded CJK strings in TMPro text assignments at runtime.
@@ -28,7 +28,7 @@ namespace ModEnglishTranslations.Patches
             string jsonPath = LocalizationInjector.GetModFilePath(OverridesFileName);
             if (jsonPath == null || !File.Exists(jsonPath))
             {
-                Debug.Log($"[ModEnglishTranslations] {OverridesFileName} not found, skipping");
+                Debug.Log($"[ModTranslationInjector] {OverridesFileName} not found, skipping");
                 return;
             }
 
@@ -39,12 +39,12 @@ namespace ModEnglishTranslations.Patches
                 if (loaded != null)
                 {
                     Overrides = loaded;
-                    Debug.Log($"[ModEnglishTranslations] Loaded {Overrides.Count} text overrides");
+                    Debug.Log($"[ModTranslationInjector] Loaded {Overrides.Count} text overrides");
                 }
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[ModEnglishTranslations] Failed to load {OverridesFileName}: {ex.Message}");
+                Debug.LogError($"[ModTranslationInjector] Failed to load {OverridesFileName}: {ex.Message}");
             }
         }
 
@@ -65,12 +65,12 @@ namespace ModEnglishTranslations.Patches
                     if (setter != null)
                     {
                         harmony.Patch(setter, prefix: prefix);
-                        Debug.Log($"[ModEnglishTranslations] Patched {type.Name}.text setter");
+                        Debug.Log($"[ModTranslationInjector] Patched {type.Name}.text setter");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogWarning($"[ModEnglishTranslations] Could not patch {type.Name}.text: {ex.Message}");
+                    Debug.LogWarning($"[ModTranslationInjector] Could not patch {type.Name}.text: {ex.Message}");
                 }
             }
 
@@ -82,12 +82,12 @@ namespace ModEnglishTranslations.Patches
                 {
                     var setTextPrefix = new HarmonyMethod(typeof(TextOverridePatch), nameof(PrefixSetText));
                     harmony.Patch(setTextMethod, prefix: setTextPrefix);
-                    Debug.Log("[ModEnglishTranslations] Patched TMP_Text.SetText(string)");
+                    Debug.Log("[ModTranslationInjector] Patched TMP_Text.SetText(string)");
                 }
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[ModEnglishTranslations] Could not patch SetText: {ex.Message}");
+                Debug.LogWarning($"[ModTranslationInjector] Could not patch SetText: {ex.Message}");
             }
 
             // Patch Unity's legacy UI.Text setter in case the game uses that.
@@ -97,12 +97,12 @@ namespace ModEnglishTranslations.Patches
                 if (uiTextSetter != null)
                 {
                     harmony.Patch(uiTextSetter, prefix: prefix);
-                    Debug.Log("[ModEnglishTranslations] Patched UnityEngine.UI.Text.text setter");
+                    Debug.Log("[ModTranslationInjector] Patched UnityEngine.UI.Text.text setter");
                 }
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[ModEnglishTranslations] Could not patch UI.Text: {ex.Message}");
+                Debug.LogWarning($"[ModTranslationInjector] Could not patch UI.Text: {ex.Message}");
             }
 
             // Patch BattleSystem.I_OtherSkillSelect which takes a string prompt
@@ -139,7 +139,7 @@ namespace ModEnglishTranslations.Patches
             var battleSystemType = AccessTools.TypeByName("BattleSystem");
             if (battleSystemType == null)
             {
-                Debug.LogWarning("[ModEnglishTranslations] BattleSystem type not found");
+                Debug.LogWarning("[ModTranslationInjector] BattleSystem type not found");
                 return;
             }
 
@@ -155,13 +155,13 @@ namespace ModEnglishTranslations.Patches
                         var stringPrefix = new HarmonyMethod(
                             typeof(TextOverridePatch), nameof(PrefixStringArgs));
                         harmony.Patch(method, prefix: stringPrefix);
-                        Debug.Log($"[ModEnglishTranslations] Patched BattleSystem.{methodName}");
+                        Debug.Log($"[ModTranslationInjector] Patched BattleSystem.{methodName}");
                     }
                 }
                 catch (Exception ex)
                 {
                     Debug.LogWarning(
-                        $"[ModEnglishTranslations] Could not patch {methodName}: {ex.Message}");
+                        $"[ModTranslationInjector] Could not patch {methodName}: {ex.Message}");
                 }
             }
         }

@@ -7,7 +7,7 @@ using I2.Loc;
 using Newtonsoft.Json;
 using UnityEngine;
 
-namespace ModEnglishTranslations.Patches
+namespace ModTranslationInjector.Patches
 {
     /// <summary>
     /// Intercepts I2.Loc term data lookups to inject English overrides.
@@ -30,7 +30,7 @@ namespace ModEnglishTranslations.Patches
             string jsonPath = GetModFilePath(OverridesFileName);
             if (jsonPath == null || !File.Exists(jsonPath))
             {
-                Debug.Log($"[ModEnglishTranslations] {OverridesFileName} not found");
+                Debug.Log($"[ModTranslationInjector] {OverridesFileName} not found");
                 return;
             }
 
@@ -41,12 +41,12 @@ namespace ModEnglishTranslations.Patches
                 if (loaded != null)
                 {
                     Overrides = loaded;
-                    Debug.Log($"[ModEnglishTranslations] Loaded {Overrides.Count} keyed overrides");
+                    Debug.Log($"[ModTranslationInjector] Loaded {Overrides.Count} keyed overrides");
                 }
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[ModEnglishTranslations] Failed to load {OverridesFileName}: {ex.Message}");
+                Debug.LogError($"[ModTranslationInjector] Failed to load {OverridesFileName}: {ex.Message}");
             }
         }
 
@@ -64,7 +64,7 @@ namespace ModEnglishTranslations.Patches
                 if (LocalizationManager.Sources != null && LocalizationManager.Sources.Count > 0)
                 {
                     _englishIndex = LocalizationManager.Sources[0].GetLanguageIndex("English");
-                    Debug.Log($"[ModEnglishTranslations] English language index: {_englishIndex}");
+                    Debug.Log($"[ModTranslationInjector] English language index: {_englishIndex}");
                 }
             }
             catch (Exception)
@@ -85,17 +85,17 @@ namespace ModEnglishTranslations.Patches
                     try
                     {
                         harmony.Patch(method, postfix: postfix);
-                        Debug.Log($"[ModEnglishTranslations] Patched LanguageSourceData.GetTermData ({method.GetParameters().Length} params)");
+                        Debug.Log($"[ModTranslationInjector] Patched LanguageSourceData.GetTermData ({method.GetParameters().Length} params)");
                     }
                     catch (Exception ex)
                     {
-                        Debug.LogWarning($"[ModEnglishTranslations] Failed to patch GetTermData: {ex.Message}");
+                        Debug.LogWarning($"[ModTranslationInjector] Failed to patch GetTermData: {ex.Message}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[ModEnglishTranslations] Could not find GetTermData: {ex.Message}");
+                Debug.LogWarning($"[ModTranslationInjector] Could not find GetTermData: {ex.Message}");
             }
         }
 
@@ -133,7 +133,7 @@ namespace ModEnglishTranslations.Patches
             try
             {
                 string gameRoot = Path.GetDirectoryName(Application.dataPath);
-                string modDir = Path.Combine(gameRoot, "Mod", "ModEnglishTranslations");
+                string modDir = Path.Combine(gameRoot, "Mod", "ModTranslationInjector");
                 string candidate = Path.Combine(modDir, fileName);
                 if (File.Exists(candidate))
                     return candidate;
@@ -160,7 +160,7 @@ namespace ModEnglishTranslations.Patches
                 // Assembly location not available.
             }
 
-            Debug.LogWarning($"[ModEnglishTranslations] Could not find {fileName} in any known location");
+            Debug.LogWarning($"[ModTranslationInjector] Could not find {fileName} in any known location");
             return null;
         }
     }

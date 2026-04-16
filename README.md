@@ -12,7 +12,7 @@ Performance and quality-of-life improvements for gameplay. Eliminates Encycloped
 
 Overhauls the Workshop mod management screen with smoother scrolling, per-mod apply progress with timing, Select All toggle, shift-click range selection, and editable load order numbers.
 
-### [Mod English Translations](chrono-ark-mod-english-translations/)
+### [Mod Translation Injector](chrono-ark-mod-translation-injector/)
 
 Injects English translations for mod content at runtime. Patches the I2 Localization system for keyed overrides and replaces hardcoded CJK strings in UI text components.
 

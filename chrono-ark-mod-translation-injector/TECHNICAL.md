@@ -1,4 +1,4 @@
-# Mod English Translations - Technical Documentation
+# Mod Translation Injector - Technical Documentation
 
 ## Architecture
 
@@ -56,7 +56,7 @@ Every `TMP_Text.text` set in the game passes through the Prefix. With hundreds o
 
 **GetTermDataPostfix:** If the returned `TermData` is non-null and the term key is in the override dictionary, sets `termData.Languages[englishIndex]` to the override value. The English language index is resolved lazily via `LocalizationManager.Sources[0].GetLanguageIndex("English")` and cached.
 
-**File resolution:** `GetModFilePath()` checks the game's `Mod/ModEnglishTranslations/` directory first, falling back to the assembly's directory. This supports both deployed installs and development builds.
+**File resolution:** `GetModFilePath()` checks the game's `Mod/ModTranslationInjector/` directory first, falling back to the assembly's directory. This supports both deployed installs and development builds.
 
 ### TextOverridePatch.cs
 

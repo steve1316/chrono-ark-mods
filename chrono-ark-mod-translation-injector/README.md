@@ -1,4 +1,4 @@
-# Mod English Translations
+# Mod Translation Injector
 
 Injects English translations for mod content in Chrono Ark at runtime. Supports both the I2 Localization keyed term system and direct hardcoded CJK string replacement.
 
@@ -26,6 +26,6 @@ Place these JSON files in the mod's folder alongside the DLL:
 ## Installation
 
 1. Build with `dotnet build`.
-2. The DLL and `ChronoArkMod.json` are copied to the game's `Mod/ModEnglishTranslations/` folder automatically.
+2. The DLL and `ChronoArkMod.json` are copied to the game's `Mod/ModTranslationInjector/` folder automatically.
 3. Add your translation JSON files to the same folder.
 4. Enable the mod in the Workshop screen and restart.

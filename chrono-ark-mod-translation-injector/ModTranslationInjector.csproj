@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
-    <AssemblyName>ModEnglishTranslations</AssemblyName>
-    <RootNamespace>ModEnglishTranslations</RootNamespace>
+    <AssemblyName>ModTranslationInjector</AssemblyName>
+    <RootNamespace>ModTranslationInjector</RootNamespace>
     <LangVersion>latest</LangVersion>
     <OutputPath>bin\Debug\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
@@ -13,7 +13,7 @@
   <PropertyGroup>
     <ChronoArkDir Condition="'$(ChronoArkDir)' == ''">F:\SteamLibrary\steamapps\common\Chrono Ark</ChronoArkDir>
     <GameManagedDir>$(ChronoArkDir)\ChronoArk_Data\Managed</GameManagedDir>
-    <ModOutputDir>$(ChronoArkDir)\Mod\ModEnglishTranslations\Assemblies</ModOutputDir>
+    <ModOutputDir>$(ChronoArkDir)\Mod\ModTranslationInjector\Assemblies</ModOutputDir>
   </PropertyGroup>
 
   <!-- Game assemblies -->
@@ -58,7 +58,7 @@
 
   <!-- Copy output DLL and mod config to game mod folder after build -->
   <Target Name="CopyToMod" AfterTargets="Build">
-    <Copy SourceFiles="$(OutputPath)ModEnglishTranslations.dll" DestinationFolder="$(ModOutputDir)" />
+    <Copy SourceFiles="$(OutputPath)ModTranslationInjector.dll" DestinationFolder="$(ModOutputDir)" />
     <Copy SourceFiles="ChronoArkMod.json" DestinationFolder="$(ModOutputDir)\.." />
   </Target>
 </Project>
