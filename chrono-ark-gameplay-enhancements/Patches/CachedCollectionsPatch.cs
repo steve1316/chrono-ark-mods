@@ -135,6 +135,16 @@ namespace GameplayEnhancements.Patches
         }
 
         /// <summary>
+        /// Reactivates cached Collections for the OpenProfile path.
+        /// No delayed frame needed since profile opens don't have TAB toggle.
+        /// </summary>
+        internal static void ReactivateCachedForProfile()
+        {
+            if (_cached == null) return;
+            ReactivateCached();
+        }
+
+        /// <summary>
         /// Waits one frame for the TAB key's GetKeyDown to expire, then
         /// reactivates. This prevents Collections.Update() from seeing
         /// TAB as pressed and immediately closing via BackButton.
@@ -191,30 +201,21 @@ namespace GameplayEnhancements.Patches
             if (obj is GameObject go)
             {
                 var collections = go.GetComponent<Collections>();
-                if (collections != null && !collections.IsOnce)
+                if (collections != null)
                 {
                     EnsureReflection();
 
                     // 1. Reparent to hidden DontDestroyOnLoad container.
-                    //    This removes it from UIManager's ActiveSlot hierarchy
-                    //    so UICheck can never find it by scanning children.
                     go.transform.SetParent(GetCacheContainer().transform, false);
 
                     // 2. Deactivate.
                     go.SetActive(false);
 
                     // 3. Simulate UI.OnDestroy chain:
-                    //    a) Mark as destroyed.
                     collections.Destoryed = true;
-
-                    //    b) Call UICheck to clean BeforeUI and clear NowActiveUI.
                     _uiCheckMethod.Invoke(null, null);
-
-                    //    c) Remove from AllUI.
                     var allUI = _allUIField.GetValue(null) as System.Collections.IList;
                     allUI?.Remove(collections);
-
-                    //    d) Remove from NoneUICheckLIst.
                     var noneList = _noneUICheckListField.GetValue(null) as System.Collections.IList;
                     noneList?.Remove(collections);
 
@@ -222,11 +223,19 @@ namespace GameplayEnhancements.Patches
                     var gpmType = AccessTools.TypeByName("GamepadManager");
                     gpmType?.GetField("LayoutStop")?.SetValue(null, false);
 
-                    // 5. Destroy any floating tooltips that reference Collections.
+                    // 5. Destroy any floating tooltips.
                     try { AccessTools.Method("ToolTipWindow:ToolTipDestroy")?.Invoke(null, null); }
                     catch { /* Non-critical. */ }
 
-                    // 6. Cache.
+                    // 6. Reset preload flag — deactivation kills coroutines
+                    //    so the preload will never reach IsPreloading = false.
+                    SkillPreloadPatch.IsPreloading = false;
+
+                    // 7. Clear IsOnce so the cache can be reused by any path.
+                    collections.IsOnce = false;
+                    collections.DeleteAction = null;
+
+                    // 8. Cache.
                     _cached = collections;
 
                     Debug.Log($"{Tag} Cached Collections UI → " +
@@ -237,9 +246,8 @@ namespace GameplayEnhancements.Patches
             }
             else if (obj is Component comp)
             {
-                // Check if this component belongs to a Collections we're caching.
                 var collections = comp.GetComponent<Collections>();
-                if (collections != null && !collections.IsOnce)
+                if (collections != null)
                 {
                     Debug.Log($"{Tag} Skipped destroying {comp.GetType().Name} (caching)");
                     return;

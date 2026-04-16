@@ -131,67 +131,22 @@ namespace GameplayEnhancements.Patches
 
         private static IEnumerator OpenProfileWithOverlay(CharSelect_CampUI instance)
         {
-            // Show overlay before the heavy instantiation.
-            var overlay = ProgressOverlayHelper.Show("Loading character info...");
-            yield return null;
-
-            // Run the original OpenProfile logic.
             Traverse.Create(instance).Field("CollectionOn").SetValue(true);
-            var obj = UIManager.InstantiateActiveAddressable(
-                UIManager.inst.AR_CollectionsUI,
-                AddressableLoadManager.ManageType.Collection);
-            var collections = obj.GetComponent<Collections>();
-            collections.cc.CharacterInfoOnName(instance.NowSelectedKey);
-            collections.IsOnce = true;
-            collections.DeleteAction = (System.Action)System.Delegate.Combine(
-                collections.DeleteAction,
-                new System.Action(() =>
-                {
-                    AccessTools.Method(typeof(CharSelect_CampUI), "SelectUIOn")
-                        ?.Invoke(instance, null);
-                }));
-            AccessTools.Method(typeof(CharSelect_CampUI), "SelectUIOff")
-                ?.Invoke(instance, null);
 
-            // Hide Collections behind overlay while loading.
-            Canvas collectionsCanvas = collections.GetComponentInParent<Canvas>();
-            if (collectionsCanvas == null)
-                collectionsCanvas = collections.GetComponent<Canvas>();
-            if (collectionsCanvas != null)
-                collectionsCanvas.enabled = false;
-
-            // Wait for skill preload to finish.
-            ProgressOverlayHelper.UpdateMessage(overlay, "Preloading skill data...");
-            yield return null;
-
-            while (SkillPreloadPatch.IsPreloading)
+            // Setup the callbacks.
+            System.Action deleteAction = () =>
             {
-                int cur = SkillPreloadPatch.PreloadCurrent;
-                int tot = SkillPreloadPatch.PreloadTotal;
-                string name = SkillPreloadPatch.PreloadCurrentName ?? "";
-                ProgressOverlayHelper.UpdateMessage(overlay,
-                    $"Preloading skill data...\n{name} ({cur}/{tot})");
-                yield return null;
-            }
-
-            // Wait for frames to settle.
-            ProgressOverlayHelper.UpdateMessage(overlay, "Finalizing...");
-            yield return null;
-
-            int smoothCount = 0;
-            while (smoothCount < 10)
+                AccessTools.Method(typeof(CharSelect_CampUI), "SelectUIOn")
+                    ?.Invoke(instance, null);
+            };
+            System.Action hideAction = () =>
             {
-                yield return null;
-                if (Time.unscaledDeltaTime < 0.060f)
-                    smoothCount++;
-                else
-                    smoothCount = 0;
-            }
+                AccessTools.Method(typeof(CharSelect_CampUI), "SelectUIOff")
+                    ?.Invoke(instance, null);
+            };
 
-            if (collectionsCanvas != null)
-                collectionsCanvas.enabled = true;
-
-            ProgressOverlayHelper.Hide(overlay);
+            yield return OpenProfileSharedHelper.OpenProfileShared(
+                instance.NowSelectedKey, true, deleteAction, hideAction);
         }
     }
 
@@ -221,41 +176,89 @@ namespace GameplayEnhancements.Patches
             if (instance.PassiveOn)
                 instance.RemovePassive();
 
+            instance.IsMain = false;
+
+            string charKey = instance.CharDatas != null
+                ? instance.CharDatas[instance.NowSelectNum].Key
+                : null;
+
+            yield return OpenProfileSharedHelper.OpenProfileShared(
+                charKey, true,
+                () => instance.SelectUIOn(),
+                () => instance.SelectUIOff());
+        }
+    }
+
+    /// <summary>
+    /// Shared coroutine for both OpenProfile paths. Creates or reuses a
+    /// cached Collections instance, configures it for the selected character,
+    /// and waits behind an overlay until fully loaded.
+    /// </summary>
+    internal static class OpenProfileSharedHelper
+    {
+        private const string Tag = "[GameplayEnhancements]";
+
+        /// <summary>
+        /// Creates or reuses a cached Collections, opens the given character,
+        /// sets IsOnce + DeleteAction, and waits behind an overlay until ready.
+        /// </summary>
+        internal static IEnumerator OpenProfileShared(
+            string charKey, bool isOnce,
+            System.Action deleteAction, System.Action hideCallerAction)
+        {
             var overlay = ProgressOverlayHelper.Show("Loading character info...");
             yield return null;
 
-            // Replicate the original OpenProfile logic.
-            instance.IsMain = false;
-            var obj = UIManager.InstantiateActiveAddressable(
-                UIManager.inst.AR_CollectionsUI,
-                AddressableLoadManager.ManageType.Collection);
-            var collections = obj.GetComponent<Collections>();
-            collections.IsOnce = true;
+            // Hide the caller's UI.
+            hideCallerAction?.Invoke();
 
-            // Open the selected character's info page.
-            string charKey = collections.cc != null && instance.CharDatas != null
-                ? instance.CharDatas[instance.NowSelectNum].Key
-                : null;
-            if (charKey != null)
+            Collections collections;
+            bool fromCache = CachedCollectionsPatch._cached != null;
+
+            if (fromCache)
+            {
+                Debug.Log($"{Tag} Reusing cached Collections for OpenProfile");
+                CachedCollectionsPatch.ReactivateCachedForProfile();
+                collections = Object.FindObjectOfType<Collections>();
+            }
+            else
+            {
+                var obj = UIManager.InstantiateActiveAddressable(
+                    UIManager.inst.AR_CollectionsUI,
+                    AddressableLoadManager.ManageType.Collection);
+                collections = obj.GetComponent<Collections>();
+            }
+
+            if (collections == null)
+            {
+                ProgressOverlayHelper.Hide(overlay);
+                yield break;
+            }
+
+            // Hide Collections behind overlay immediately after creation.
+            Canvas collectionsCanvas = collections.GetComponentInParent<Canvas>();
+            if (collectionsCanvas == null)
+                collectionsCanvas = collections.GetComponent<Canvas>();
+            if (collectionsCanvas != null)
+                collectionsCanvas.enabled = false;
+
+            // Configure for profile view.
+            collections.IsOnce = isOnce;
+            collections.DeleteAction = deleteAction;
+
+            // Switch to Character tab and navigate to the selected character.
+            if (fromCache)
+                collections.SelectCategory(0);
+            if (charKey != null && collections.cc != null)
                 collections.cc.CharacterInfoOnName(charKey);
 
-            // Set the delete callback to restore the selection UI.
-            collections.DeleteAction = (System.Action)System.Delegate.Combine(
-                collections.DeleteAction,
-                new System.Action(() => instance.SelectUIOn()));
-            instance.SelectUIOff();
-
-            // Hide Collections behind overlay while loading.
-            Canvas collectionsCanvasV2 = collections.GetComponentInParent<Canvas>();
-            if (collectionsCanvasV2 == null)
-                collectionsCanvasV2 = collections.GetComponent<Canvas>();
-            if (collectionsCanvasV2 != null)
-                collectionsCanvasV2.enabled = false;
-
-            // Wait for skill preload to finish (triggered by SKillCollection.Start).
-            ProgressOverlayHelper.UpdateMessage(overlay, "Preloading skill data...");
+            // Yield a frame so the preload coroutine can start.
             yield return null;
 
+            Debug.Log($"{Tag} OpenProfile: IsPreloading={SkillPreloadPatch.IsPreloading}, " +
+                      $"fromCache={fromCache}");
+
+            // Wait for skill preload if running.
             while (SkillPreloadPatch.IsPreloading)
             {
                 int cur = SkillPreloadPatch.PreloadCurrent;
@@ -266,22 +269,22 @@ namespace GameplayEnhancements.Patches
                 yield return null;
             }
 
-            // Wait for frames to settle (shader compilation, layout rebuilds).
-            ProgressOverlayHelper.UpdateMessage(overlay, "Finalizing...");
-            yield return null;
+            Debug.Log($"{Tag} OpenProfile: preload done, settling");
 
+            // Wait for frames to settle.
+            ProgressOverlayHelper.UpdateMessage(overlay, "Finalizing...");
             int smoothCount = 0;
-            while (smoothCount < 10)
+            while (smoothCount < 5)
             {
                 yield return null;
-                if (Time.unscaledDeltaTime < 0.060f)
+                if (Time.unscaledDeltaTime < 0.100f)
                     smoothCount++;
                 else
                     smoothCount = 0;
             }
 
-            if (collectionsCanvasV2 != null)
-                collectionsCanvasV2.enabled = true;
+            if (collectionsCanvas != null)
+                collectionsCanvas.enabled = true;
 
             ProgressOverlayHelper.Hide(overlay);
         }
