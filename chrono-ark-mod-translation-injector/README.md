@@ -6,7 +6,11 @@ Injects English translations for mod content in Chrono Ark at runtime. Supports 
 
 ### Keyed Localization Overrides
 
-Patches `LanguageSourceData.GetTermData()` (all overloads) to inject English text for localization keys defined in `keyed_overrides.json`. When the game looks up a term and finds a match in the override file, the English column of the returned `TermData` is set to the override value.
+Patches `LanguageSourceData.GetTranslation()` to intercept the per-instance translation calls the mod framework makes. The Chrono Ark mod framework (`ModLocalizationInfo.LocalizeUpdate`) calls `GetTranslation` directly on each mod's own `LanguageSourceData` instance, bypassing `LocalizationManager` entirely. Our prefix checks the override dictionary first and returns the English text directly when matched.
+
+Character names are handled separately because the game's `LocalizeDataPool` excludes the `name` field from localization. A postfix on `GDEDataManager.Init` writes character name overrides directly into GDE data via `GDEDataManager.SetString` after all mod data loads.
+
+Key normalization is applied at load time to correct common mismatches between JSON keys and the game's internal term format (e.g. `PassiveDesc` -> `PassiveDes`).
 
 ### Hardcoded Text Replacement
 
