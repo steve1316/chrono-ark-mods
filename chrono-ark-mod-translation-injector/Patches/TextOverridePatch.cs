@@ -21,7 +21,10 @@ namespace ModTranslationInjector.Patches
         private const string OverridesFileName = "text_overrides.json";
 
         /// <summary>
-        /// Loads the text override mapping from the mod's directory.
+        /// Loads the text override mapping from the mod's directory. The JSON
+        /// is grouped by mod name as the parent key, with CJK-to-English
+        /// mappings as children:
+        /// { "ModName": { "CJK string": "English text", ... }, ... }
         /// </summary>
         internal static void LoadOverrides()
         {
@@ -35,11 +38,19 @@ namespace ModTranslationInjector.Patches
             try
             {
                 string json = File.ReadAllText(jsonPath);
-                var loaded = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
-                if (loaded != null)
+                var grouped = JsonConvert.DeserializeObject<
+                    Dictionary<string, Dictionary<string, string>>>(json);
+                if (grouped != null)
                 {
-                    Overrides = loaded;
-                    Debug.Log($"[ModTranslationInjector] Loaded {Overrides.Count} text overrides");
+                    Overrides.Clear();
+                    foreach (var mod in grouped)
+                    {
+                        foreach (var entry in mod.Value)
+                            Overrides[entry.Key] = entry.Value;
+
+                        Debug.Log($"[ModTranslationInjector] Loaded {mod.Value.Count} text overrides from '{mod.Key}'");
+                    }
+                    Debug.Log($"[ModTranslationInjector] Total text overrides: {Overrides.Count}");
                 }
             }
             catch (Exception ex)

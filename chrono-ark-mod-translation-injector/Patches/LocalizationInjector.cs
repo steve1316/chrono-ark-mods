@@ -23,7 +23,9 @@ namespace ModTranslationInjector.Patches
         private static int _englishIndex = -1;
 
         /// <summary>
-        /// Loads keyed overrides from JSON into memory.
+        /// Loads keyed overrides from JSON into memory. The JSON is grouped
+        /// by mod name as the parent key, with term keys as children:
+        /// { "ModName": { "Term_Key": "English text", ... }, ... }
         /// </summary>
         internal static void LoadOverrides()
         {
@@ -37,11 +39,19 @@ namespace ModTranslationInjector.Patches
             try
             {
                 string json = File.ReadAllText(jsonPath);
-                var loaded = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
-                if (loaded != null)
+                var grouped = JsonConvert.DeserializeObject<
+                    Dictionary<string, Dictionary<string, string>>>(json);
+                if (grouped != null)
                 {
-                    Overrides = loaded;
-                    Debug.Log($"[ModTranslationInjector] Loaded {Overrides.Count} keyed overrides");
+                    Overrides.Clear();
+                    foreach (var mod in grouped)
+                    {
+                        foreach (var entry in mod.Value)
+                            Overrides[entry.Key] = entry.Value;
+
+                        Debug.Log($"[ModTranslationInjector] Loaded {mod.Value.Count} keyed overrides from '{mod.Key}'");
+                    }
+                    Debug.Log($"[ModTranslationInjector] Total keyed overrides: {Overrides.Count}");
                 }
             }
             catch (Exception ex)

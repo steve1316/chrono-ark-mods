@@ -18,10 +18,34 @@ Uses fast Unicode range checks (CJK Unified Ideographs, Extension A, Compatibili
 
 ## Data Files
 
-Place these JSON files in the mod's folder alongside the DLL:
+Place these JSON files in the mod's folder alongside the DLL. Both use a nested structure grouped by mod name:
 
-- **`keyed_overrides.json`** - Dictionary of localization key to English string.
-- **`text_overrides.json`** - Dictionary of original CJK string to English replacement.
+**`keyed_overrides.json`** - Localization key overrides grouped by mod:
+
+```json
+{
+  "SomeMod": {
+    "Skill_FireBall_Name": "Fireball",
+    "Skill_FireBall_Desc": "Deals fire damage to a single enemy."
+  },
+  "AnotherMod": {
+    "Item_Potion_Name": "Healing Potion"
+  }
+}
+```
+
+**`text_overrides.json`** - Hardcoded CJK string replacements grouped by mod:
+
+```json
+{
+  "SomeMod": {
+    "\u706b\u7403": "Fireball",
+    "\u653b\u51fb": "Attack"
+  }
+}
+```
+
+The mod name keys are for organization only — all entries are flattened into a single lookup dictionary at load time.
 
 ## Installation
 
