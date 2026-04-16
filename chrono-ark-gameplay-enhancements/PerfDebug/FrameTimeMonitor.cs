@@ -1,3 +1,5 @@
+using System.Collections;
+using HarmonyLib;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Debug = UnityEngine.Debug;
@@ -40,6 +42,10 @@ namespace GameplayEnhancements.PerfDebug
 
         void Update()
         {
+            // F9: dump full UIManager state for debugging.
+            if (Input.GetKeyDown(KeyCode.F9))
+                DumpUIManagerState();
+
             // Track TAB presses for correlation with subsequent hitches.
             if (Input.GetKeyDown(KeyCode.Tab))
             {
@@ -138,7 +144,7 @@ namespace GameplayEnhancements.PerfDebug
         /// <summary>
         /// Builds the full transform hierarchy path for a GameObject.
         /// </summary>
-        private static string GetGameObjectPath(GameObject go)
+        internal static string GetGameObjectPath(GameObject go)
         {
             var path = go.name;
             var t = go.transform.parent;
@@ -148,6 +154,87 @@ namespace GameplayEnhancements.PerfDebug
                 t = t.parent;
             }
             return path;
+        }
+
+        /// <summary>
+        /// Dumps the full UIManager state on F9 for debugging the caching
+        /// and ESC flow without needing to grep through logs.
+        /// </summary>
+        private void DumpUIManagerState()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"{Tag}[F9-Dump] === UIManager State ===");
+
+            // NowActiveUI.
+            var nowUI = UIManager.NowActiveUI;
+            sb.AppendLine($"  NowActiveUI = {(nowUI != null ? $"{nowUI.GetType().Name} (active={nowUI.gameObject.activeInHierarchy}, destroyed={nowUI.Destoryed})" : "null")}");
+
+            // AllUI.
+            try
+            {
+                var allUI = AccessTools.Field(typeof(UIManager), "AllUI")
+                    ?.GetValue(null) as IList;
+                sb.AppendLine($"  AllUI.Count = {allUI?.Count ?? -1}");
+                if (allUI != null)
+                    foreach (var item in allUI)
+                    {
+                        var ui = item as UI;
+                        if (ui != null)
+                            sb.AppendLine($"    {ui.GetType().Name} active={ui.gameObject.activeInHierarchy} destroyed={ui.Destoryed} path={GetGameObjectPath(ui.gameObject)}");
+                    }
+            }
+            catch { sb.AppendLine("  AllUI: <error>"); }
+
+            // BeforeUI.
+            try
+            {
+                var beforeUI = AccessTools.Field(typeof(UIManager), "BeforeUI")
+                    ?.GetValue(null) as IList;
+                sb.AppendLine($"  BeforeUI.Count = {beforeUI?.Count ?? -1}");
+                if (beforeUI != null)
+                    foreach (var item in beforeUI)
+                    {
+                        var ui = item as UI;
+                        if (ui != null)
+                            sb.AppendLine($"    {ui.GetType().Name} active={ui.gameObject.activeInHierarchy} destroyed={ui.Destoryed}");
+                    }
+            }
+            catch { sb.AppendLine("  BeforeUI: <error>"); }
+
+            // NoneUICheckLIst.
+            try
+            {
+                var noneList = AccessTools.Field(typeof(UIManager), "NoneUICheckLIst")
+                    ?.GetValue(null) as IList;
+                sb.AppendLine($"  NoneUICheckLIst.Count = {noneList?.Count ?? -1}");
+            }
+            catch { sb.AppendLine("  NoneUICheckLIst: <error>"); }
+
+            // GamepadManager flags.
+            try
+            {
+                var gpmType = AccessTools.TypeByName("GamepadManager");
+                var layoutStop = gpmType?.GetField("LayoutStop")?.GetValue(null);
+                var isLayoutMode = gpmType?.GetField("IsLayoutMode")?.GetValue(null);
+                sb.AppendLine($"  GamepadManager.LayoutStop = {layoutStop}");
+                sb.AppendLine($"  GamepadManager.IsLayoutMode = {isLayoutMode}");
+            }
+            catch { sb.AppendLine("  GamepadManager: <error>"); }
+
+            // Cached Collections reference.
+            try
+            {
+                var cachedField = AccessTools.Field(
+                    typeof(Patches.CachedCollectionsPatch), "_cached");
+                var cached = cachedField?.GetValue(null) as Collections;
+                if (cached != null)
+                    sb.AppendLine($"  CachedCollections = {cached.GetType().Name} active={cached.gameObject.activeInHierarchy} destroyed={cached.Destoryed} path={GetGameObjectPath(cached.gameObject)}");
+                else
+                    sb.AppendLine("  CachedCollections = null");
+            }
+            catch { sb.AppendLine("  CachedCollections: <error>"); }
+
+            Debug.Log(sb.ToString());
         }
     }
 }
