@@ -46,6 +46,7 @@ namespace GameplayEnhancements.Patches
             static bool Prefix(SKillCollection __instance)
             {
                 if (_bypassSkill) return true;
+                if (IsOnceCollections(__instance)) return true;
 
                 _deferredSkill = __instance;
                 Debug.Log($"{Tag} Deferred SKillCollection.Start()");
@@ -63,6 +64,7 @@ namespace GameplayEnhancements.Patches
             static bool Prefix(ItemCollection __instance)
             {
                 if (_bypassItem) return true;
+                if (IsOnceCollections(__instance)) return true;
 
                 _deferredItem = __instance;
                 Debug.Log($"{Tag} Deferred ItemCollection.Start()");
@@ -80,11 +82,22 @@ namespace GameplayEnhancements.Patches
             static bool Prefix(MonsterCollection __instance)
             {
                 if (_bypassMonster) return true;
+                if (IsOnceCollections(__instance)) return true;
 
                 _deferredMonster = __instance;
                 Debug.Log($"{Tag} Deferred MonsterCollection.Start()");
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Checks if the parent Collections was opened with IsOnce=true
+        /// (character profile view). These should not be deferred.
+        /// </summary>
+        private static bool IsOnceCollections(MonoBehaviour tabComponent)
+        {
+            var collections = tabComponent.GetComponentInParent<Collections>();
+            return collections != null && collections.IsOnce;
         }
 
         /// <summary>

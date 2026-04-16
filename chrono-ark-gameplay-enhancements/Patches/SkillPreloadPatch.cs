@@ -147,12 +147,141 @@ namespace GameplayEnhancements.Patches
                 collections.DeleteAction,
                 new System.Action(() =>
                 {
-                    // Replicate SelectUIOn behavior via reflection.
                     AccessTools.Method(typeof(CharSelect_CampUI), "SelectUIOn")
                         ?.Invoke(instance, null);
                 }));
             AccessTools.Method(typeof(CharSelect_CampUI), "SelectUIOff")
                 ?.Invoke(instance, null);
+
+            // Hide Collections behind overlay while loading.
+            Canvas collectionsCanvas = collections.GetComponentInParent<Canvas>();
+            if (collectionsCanvas == null)
+                collectionsCanvas = collections.GetComponent<Canvas>();
+            if (collectionsCanvas != null)
+                collectionsCanvas.enabled = false;
+
+            // Wait for skill preload to finish.
+            ProgressOverlayHelper.UpdateMessage(overlay, "Preloading skill data...");
+            yield return null;
+
+            while (SkillPreloadPatch.IsPreloading)
+            {
+                int cur = SkillPreloadPatch.PreloadCurrent;
+                int tot = SkillPreloadPatch.PreloadTotal;
+                string name = SkillPreloadPatch.PreloadCurrentName ?? "";
+                ProgressOverlayHelper.UpdateMessage(overlay,
+                    $"Preloading skill data...\n{name} ({cur}/{tot})");
+                yield return null;
+            }
+
+            // Wait for frames to settle.
+            ProgressOverlayHelper.UpdateMessage(overlay, "Finalizing...");
+            yield return null;
+
+            int smoothCount = 0;
+            while (smoothCount < 10)
+            {
+                yield return null;
+                if (Time.unscaledDeltaTime < 0.060f)
+                    smoothCount++;
+                else
+                    smoothCount = 0;
+            }
+
+            if (collectionsCanvas != null)
+                collectionsCanvas.enabled = true;
+
+            ProgressOverlayHelper.Hide(overlay);
+        }
+    }
+
+    /// <summary>
+    /// Wraps CharSelectMainUIV2.OpenProfile() in a coroutine with a progress
+    /// overlay. This is the character selection screen path (Difficulty,
+    /// Change Mode, etc.) which opens Collections with IsOnce=true.
+    /// </summary>
+    [HarmonyPatch(typeof(CharSelectMainUIV2), nameof(CharSelectMainUIV2.OpenProfile))]
+    internal static class OpenProfileOverlayPatchV2
+    {
+        static bool Prefix(CharSelectMainUIV2 __instance)
+        {
+            __instance.StartCoroutine(OpenProfileWithOverlay(__instance));
+            return false;
+        }
+
+        private static IEnumerator OpenProfileWithOverlay(CharSelectMainUIV2 instance)
+        {
+            // Early-out checks matching the original method.
+            if (instance.NowSelectNum < 0) yield break;
+
+            var isReturnProp = AccessTools.Property(typeof(CharSelectMainUIV2), "IsReturnToArkWindowOn");
+            if (isReturnProp != null && (bool)isReturnProp.GetValue(instance, null))
+                yield break;
+
+            if (instance.PassiveOn)
+                instance.RemovePassive();
+
+            var overlay = ProgressOverlayHelper.Show("Loading character info...");
+            yield return null;
+
+            // Replicate the original OpenProfile logic.
+            instance.IsMain = false;
+            var obj = UIManager.InstantiateActiveAddressable(
+                UIManager.inst.AR_CollectionsUI,
+                AddressableLoadManager.ManageType.Collection);
+            var collections = obj.GetComponent<Collections>();
+            collections.IsOnce = true;
+
+            // Open the selected character's info page.
+            string charKey = collections.cc != null && instance.CharDatas != null
+                ? instance.CharDatas[instance.NowSelectNum].Key
+                : null;
+            if (charKey != null)
+                collections.cc.CharacterInfoOnName(charKey);
+
+            // Set the delete callback to restore the selection UI.
+            collections.DeleteAction = (System.Action)System.Delegate.Combine(
+                collections.DeleteAction,
+                new System.Action(() => instance.SelectUIOn()));
+            instance.SelectUIOff();
+
+            // Hide Collections behind overlay while loading.
+            Canvas collectionsCanvasV2 = collections.GetComponentInParent<Canvas>();
+            if (collectionsCanvasV2 == null)
+                collectionsCanvasV2 = collections.GetComponent<Canvas>();
+            if (collectionsCanvasV2 != null)
+                collectionsCanvasV2.enabled = false;
+
+            // Wait for skill preload to finish (triggered by SKillCollection.Start).
+            ProgressOverlayHelper.UpdateMessage(overlay, "Preloading skill data...");
+            yield return null;
+
+            while (SkillPreloadPatch.IsPreloading)
+            {
+                int cur = SkillPreloadPatch.PreloadCurrent;
+                int tot = SkillPreloadPatch.PreloadTotal;
+                string name = SkillPreloadPatch.PreloadCurrentName ?? "";
+                ProgressOverlayHelper.UpdateMessage(overlay,
+                    $"Preloading skill data...\n{name} ({cur}/{tot})");
+                yield return null;
+            }
+
+            // Wait for frames to settle (shader compilation, layout rebuilds).
+            ProgressOverlayHelper.UpdateMessage(overlay, "Finalizing...");
+            yield return null;
+
+            int smoothCount = 0;
+            while (smoothCount < 10)
+            {
+                yield return null;
+                if (Time.unscaledDeltaTime < 0.060f)
+                    smoothCount++;
+                else
+                    smoothCount = 0;
+            }
+
+            if (collectionsCanvasV2 != null)
+                collectionsCanvasV2.enabled = true;
 
             ProgressOverlayHelper.Hide(overlay);
         }
