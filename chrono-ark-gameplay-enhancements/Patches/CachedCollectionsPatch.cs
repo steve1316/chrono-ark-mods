@@ -1,6 +1,8 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
 using UnityEngine;
@@ -9,10 +11,10 @@ using Debug = UnityEngine.Debug;
 namespace GameplayEnhancements.Patches
 {
     /// <summary>
-    /// Orchestrates Collections UI loading behind a progress overlay so the
-    /// user never sees lag once the overlay dismisses. Each TAB press shows
-    /// the overlay, creates Collections, initializes all tabs, waits for
-    /// skill preloading and frame settling, then reveals the UI.
+    /// Caches the Collections UI across open/close cycles. On close, reparents
+    /// to a hidden DontDestroyOnLoad container and manually simulates OnDestroy
+    /// so the game's UI tracking is fully cleaned up. On reopen, reparents back
+    /// and re-registers with UIManager. First open uses an overlay for loading.
     /// </summary>
     internal static class CachedCollectionsPatch
     {
@@ -20,21 +22,57 @@ namespace GameplayEnhancements.Patches
         private const float SmoothFrameThreshold = 0.060f;
         private const int RequiredSmoothFrames = 10;
 
+        internal static Collections _cached;
         private static bool _bypassOpen;
         private static MonoBehaviour _coroutineHost;
+        private static GameObject _cacheContainer;
 
-        /// <summary>
-        /// Sets the MonoBehaviour used to host coroutines (called from Plugin).
-        /// </summary>
+
+        // Cached reflection — resolved once.
+        private static bool _reflectionReady;
+        private static MethodInfo _uiCheckMethod;
+        private static MethodInfo _setActiveUIForceMethod;
+        private static FieldInfo _allUIField;
+        private static FieldInfo _noneUICheckListField;
+        private static FieldInfo _prevLayoutsField;
+
         internal static void SetCoroutineHost(MonoBehaviour host)
         {
             _coroutineHost = host;
         }
 
         /// <summary>
-        /// Intercepts UIManager.CollectionsUIOpen to run the overlay-based
-        /// loading flow instead of opening Collections directly.
+        /// Returns (or creates) the hidden DontDestroyOnLoad container
+        /// used to hold cached Collections between open/close cycles.
         /// </summary>
+        private static GameObject GetCacheContainer()
+        {
+            if (_cacheContainer == null)
+            {
+                _cacheContainer = new GameObject("CollectionsCache_Hidden");
+                UnityEngine.Object.DontDestroyOnLoad(_cacheContainer);
+                _cacheContainer.SetActive(false);
+            }
+            return _cacheContainer;
+        }
+
+        private static void EnsureReflection()
+        {
+            if (_reflectionReady) return;
+            _reflectionReady = true;
+
+            _uiCheckMethod = AccessTools.Method(typeof(UIManager), "UICheck");
+            _setActiveUIForceMethod = AccessTools.Method(typeof(UIManager),
+                "SetActiveUIForce", new[] { typeof(UI) });
+            _allUIField = AccessTools.Field(typeof(UIManager), "AllUI");
+            _noneUICheckListField = AccessTools.Field(typeof(UIManager), "NoneUICheckLIst");
+            _prevLayoutsField = AccessTools.Field(typeof(Collections), "PrevLayouts");
+        }
+
+        // ----------------------------------------------------------------
+        // UIManager.CollectionsUIOpen — overlay on first open, cache reuse
+        // ----------------------------------------------------------------
+
         [HarmonyPatch(typeof(UIManager), nameof(UIManager.CollectionsUIOpen))]
         internal static class CollectionsUIOpenPatch
         {
@@ -42,9 +80,16 @@ namespace GameplayEnhancements.Patches
             {
                 if (_bypassOpen) return true;
 
+                if (_cached != null)
+                {
+                    Debug.Log($"{Tag} Reusing cached Collections UI (delayed 1 frame)");
+                    _coroutineHost.StartCoroutine(DelayedReactivate());
+                    return false;
+                }
+
                 if (_coroutineHost != null)
                 {
-                    _coroutineHost.StartCoroutine(OpenWithOverlay());
+                    _coroutineHost.StartCoroutine(FirstOpenWithOverlay());
                     return false;
                 }
 
@@ -53,19 +98,183 @@ namespace GameplayEnhancements.Patches
         }
 
         /// <summary>
-        /// Shows a progress overlay, creates Collections, initializes all
-        /// tabs sequentially, waits for skill preloading and frame settling,
-        /// then dismisses the overlay to reveal a fully ready UI.
+        /// Moves the cached Collections back from the hidden container,
+        /// clears destroyed state, and re-registers with UIManager.
         /// </summary>
-        private static IEnumerator OpenWithOverlay()
+        private static void ReactivateCached()
+        {
+            EnsureReflection();
+            var collections = _cached;
+
+            // Undo the destroyed state.
+            collections.Destoryed = false;
+
+            // Reactivate the gameObject (triggers OnEnable).
+            collections.gameObject.SetActive(true);
+
+            // Re-register with the game's UI system. SetActiveUIForce
+            // sets NowActiveUI, adds to AllUI, and parents under ActiveSlot.
+            // Note: SetActiveUIForce uses SetParent with worldPositionStays=true,
+            // which corrupts the RectTransform when moving between Canvas
+            // hierarchies. We fix it immediately after.
+            _setActiveUIForceMethod.Invoke(null, new object[] { collections });
+
+            // Reset the RectTransform to match the original first-open state.
+            var rt = collections.GetComponent<RectTransform>();
+            if (rt != null)
+            {
+                rt.localPosition = new Vector3(0f, 0f, -0.1f);
+                rt.localScale = Vector3.one;
+            }
+
+            // Clear cached reference now that it's active again.
+            _cached = null;
+
+            Debug.Log($"{Tag} Reactivated cached Collections at frame {Time.frameCount} " +
+                      $"(NowActiveUI={UIManager.NowActiveUI?.GetType().Name})");
+        }
+
+        /// <summary>
+        /// Waits one frame for the TAB key's GetKeyDown to expire, then
+        /// reactivates. This prevents Collections.Update() from seeing
+        /// TAB as pressed and immediately closing via BackButton.
+        /// </summary>
+        private static IEnumerator DelayedReactivate()
+        {
+            yield return null;
+            if (_cached != null)
+                ReactivateCached();
+        }
+
+        // ----------------------------------------------------------------
+        // Collections.ESC — transpiler replaces Destroy with cache redirect
+        // ----------------------------------------------------------------
+
+        [HarmonyPatch(typeof(Collections), "ESC")]
+        internal static class CollectionsESCPatch
+        {
+            static IEnumerable<CodeInstruction> Transpiler(
+                IEnumerable<CodeInstruction> instructions)
+            {
+                var destroyMethod = AccessTools.Method(typeof(UnityEngine.Object),
+                    "Destroy", new[] { typeof(UnityEngine.Object) });
+                var redirectMethod = AccessTools.Method(
+                    typeof(CachedCollectionsPatch), nameof(DestroyOrCache));
+                var unloadMethod = AccessTools.Method(typeof(Resources),
+                    nameof(Resources.UnloadUnusedAssets));
+                var gcCollect = AccessTools.Method(typeof(GC), "Collect",
+                    Type.EmptyTypes);
+
+                foreach (var inst in instructions)
+                {
+                    if (inst.Calls(destroyMethod))
+                        yield return new CodeInstruction(OpCodes.Call, redirectMethod);
+                    else if (inst.Calls(unloadMethod))
+                        yield return new CodeInstruction(OpCodes.Ldnull);
+                    else if (inst.Calls(gcCollect))
+                        yield return new CodeInstruction(OpCodes.Nop);
+                    else
+                        yield return inst;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Called instead of Object.Destroy during Collections.ESC().
+        /// For the Collections gameObject (non-IsOnce): reparents to a hidden
+        /// container, deactivates, and manually simulates OnDestroy so the
+        /// game's UI tracking is fully cleaned up. For other objects on cached
+        /// Collections: skips destroy. For everything else: destroys normally.
+        /// </summary>
+        public static void DestroyOrCache(UnityEngine.Object obj)
+        {
+            if (obj is GameObject go)
+            {
+                var collections = go.GetComponent<Collections>();
+                if (collections != null && !collections.IsOnce)
+                {
+                    EnsureReflection();
+
+                    // 1. Reparent to hidden DontDestroyOnLoad container.
+                    //    This removes it from UIManager's ActiveSlot hierarchy
+                    //    so UICheck can never find it by scanning children.
+                    go.transform.SetParent(GetCacheContainer().transform, false);
+
+                    // 2. Deactivate.
+                    go.SetActive(false);
+
+                    // 3. Simulate UI.OnDestroy chain:
+                    //    a) Mark as destroyed.
+                    collections.Destoryed = true;
+
+                    //    b) Call UICheck to clean BeforeUI and clear NowActiveUI.
+                    _uiCheckMethod.Invoke(null, null);
+
+                    //    c) Remove from AllUI.
+                    var allUI = _allUIField.GetValue(null) as System.Collections.IList;
+                    allUI?.Remove(collections);
+
+                    //    d) Remove from NoneUICheckLIst.
+                    var noneList = _noneUICheckListField.GetValue(null) as System.Collections.IList;
+                    noneList?.Remove(collections);
+
+                    // 4. Simulate Collections.OnDestroy: reset GamepadManager.
+                    var gpmType = AccessTools.TypeByName("GamepadManager");
+                    gpmType?.GetField("LayoutStop")?.SetValue(null, false);
+
+                    // 5. Cache.
+                    _cached = collections;
+
+                    Debug.Log($"{Tag} Cached Collections UI → " +
+                              $"DontDestroyOnLoad (NowActiveUI=" +
+                              $"{(UIManager.NowActiveUI != null ? UIManager.NowActiveUI.GetType().Name : "null")})");
+                    return;
+                }
+            }
+            else if (obj is Component comp)
+            {
+                // Check if this component belongs to a Collections we're caching.
+                var collections = comp.GetComponent<Collections>();
+                if (collections != null && !collections.IsOnce)
+                {
+                    Debug.Log($"{Tag} Skipped destroying {comp.GetType().Name} (caching)");
+                    return;
+                }
+            }
+
+            // Not cacheable — destroy normally.
+            UnityEngine.Object.Destroy(obj);
+        }
+
+        // ----------------------------------------------------------------
+        // Collections.Start — detect conflicting new instances
+        // ----------------------------------------------------------------
+
+        [HarmonyPatch(typeof(Collections), "Start")]
+        internal static class CollectionsStartPatch
+        {
+            static void Postfix(Collections __instance)
+            {
+                if (_cached != null && _cached != __instance)
+                {
+                    Debug.Log($"{Tag} New Collections instance created, clearing stale cache");
+                    UnityEngine.Object.Destroy(_cached.gameObject);
+                    _cached = null;
+                }
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // First-open overlay flow
+        // ----------------------------------------------------------------
+
+        private static IEnumerator FirstOpenWithOverlay()
         {
             var totalSw = Stopwatch.StartNew();
 
             var overlay = ProgressOverlayHelper.Show("Loading encyclopedia...");
             yield return null;
 
-            // Create the Collections UI. CharacterCollection.Start runs
-            // synchronously; other tabs are deferred by DeferredCollectionsPatch.
             ProgressOverlayHelper.UpdateMessage(overlay, "Loading characters...");
             yield return null;
 
@@ -76,8 +285,15 @@ namespace GameplayEnhancements.Patches
             sw.Stop();
             Debug.Log($"{Tag} CollectionsUIOpen (Character tab): {sw.ElapsedMilliseconds}ms");
 
-            // Hide Collections behind the overlay by disabling its Canvas.
-            var collections = Object.FindObjectOfType<Collections>();
+            // Log initial transform for comparison with cached reopen.
+            var collections = UnityEngine.Object.FindObjectOfType<Collections>();
+            if (collections != null)
+            {
+                var rt0 = collections.GetComponent<RectTransform>();
+                if (rt0 != null)
+                    Debug.Log($"{Tag} [FirstOpen] RectTransform: pos={rt0.localPosition}, scale={rt0.localScale}, " +
+                              $"size={rt0.sizeDelta}, anchors=({rt0.anchorMin},{rt0.anchorMax})");
+            }
             Canvas collectionsCanvas = null;
             if (collections != null)
             {
@@ -88,7 +304,6 @@ namespace GameplayEnhancements.Patches
                     collectionsCanvas.enabled = false;
             }
 
-            // Initialize deferred tabs one at a time with overlay updates.
             yield return null;
 
             ProgressOverlayHelper.UpdateMessage(overlay, "Loading skills...");
@@ -114,7 +329,6 @@ namespace GameplayEnhancements.Patches
             sw.Stop();
             Debug.Log($"{Tag} MonsterCollection init: {sw.ElapsedMilliseconds}ms");
 
-            // Wait for the SkillPreloadPatch background coroutine to finish.
             while (SkillPreloadPatch.IsPreloading)
             {
                 int cur = SkillPreloadPatch.PreloadCurrent;
@@ -127,7 +341,6 @@ namespace GameplayEnhancements.Patches
 
             Debug.Log($"{Tag} Skill preload finished");
 
-            // Wait for frames to settle.
             ProgressOverlayHelper.UpdateMessage(overlay, "Finalizing...");
             yield return null;
 
@@ -144,51 +357,10 @@ namespace GameplayEnhancements.Patches
             totalSw.Stop();
             Debug.Log($"{Tag} Collections fully ready in {totalSw.ElapsedMilliseconds}ms");
 
-            // Reveal Collections and dismiss overlay.
             if (collectionsCanvas != null)
                 collectionsCanvas.enabled = true;
 
             ProgressOverlayHelper.Hide(overlay);
-        }
-
-        // --- ESC transpiler: keep Addressable cache warm across opens ---
-
-        /// <summary>
-        /// Removes Resources.UnloadUnusedAssets() and GC.Collect() from
-        /// Collections.ESC() so that Addressable-loaded sprites stay in
-        /// Unity's asset cache. Everything else (Destroy, flag resets,
-        /// gamepad restore) runs unmodified.
-        /// </summary>
-        [HarmonyPatch(typeof(Collections), "ESC")]
-        internal static class CollectionsESCTranspiler
-        {
-            static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-            {
-                var unloadMethod = AccessTools.Method(typeof(Resources),
-                    nameof(Resources.UnloadUnusedAssets));
-                var gcCollect = AccessTools.Method(typeof(System.GC), "Collect",
-                    System.Type.EmptyTypes);
-
-                foreach (var inst in instructions)
-                {
-                    if (inst.Calls(unloadMethod))
-                    {
-                        // UnloadUnusedAssets returns AsyncOperation — replace
-                        // with ldnull so the pop after it still works.
-                        yield return new CodeInstruction(OpCodes.Ldnull);
-                    }
-                    else if (inst.Calls(gcCollect))
-                    {
-                        yield return new CodeInstruction(OpCodes.Nop);
-                    }
-                    else
-                    {
-                        yield return inst;
-                    }
-                }
-
-                Debug.Log($"{Tag} ESC transpiler: removed UnloadUnusedAssets + GC.Collect");
-            }
         }
     }
 }
