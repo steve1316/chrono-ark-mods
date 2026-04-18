@@ -2,7 +2,7 @@
     "id": "ModTranslationInjector",
     "Title": "Mod Translation Injector",
     "Author": "steve1316",
-    "Description": "Injects English translations for mod content at runtime. Reads keyed_overrides.json for localization key overrides and text_overrides.json for hardcoded CJK string replacements.",
+    "Description": "1. Reads keyed_overrides.json for localization key overrides.\n2. Reads text_overrides.json for hardcoded CJK string replacements.",
     "Version": "1.0.0",
     "Cover": "",
     "ModSettingEntries": [],

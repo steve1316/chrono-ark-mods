@@ -2,7 +2,7 @@
     "id": "WorkshopOverhaul",
     "Title": "Workshop Screen Overhaul",
     "Author": "steve1316",
-    "Description": "Overhauls the Workshop mod management screen with smoother scrolling, per-mod apply progress, Select All toggle, shift-click range selection, and editable load order numbers.",
+    "Description": "1. Smoother scrolling in the mod list.\n2. Per-mod apply progress with timing.\n3. Select All toggle for batch operations.\n4. Shift-click range selection.\n5. Editable load order numbers.",
     "Version": "1.0.0",
     "Cover": "",
     "ModSettingEntries": [],

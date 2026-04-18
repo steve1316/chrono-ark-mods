@@ -6,15 +6,23 @@ A collection of quality-of-life and performance mods for [Chrono Ark](https://st
 
 ### [Gameplay Enhancements](chrono-ark-gameplay-enhancements/)
 
-Performance, bug fix, and quality-of-life improvements for gameplay. Optionally eliminates Encyclopedia freezes via UI caching and deferred tab loading. Fixes the camp recruit button disappearing after save/load. Includes configurable starting Mana, Gold, and Soulstones.
+1. Fixes the camp recruit button disappearing after save/load.
+2. Optionally caches the Encyclopedia UI and defers tab loading to eliminate freezes.
+3. Configurable starting Mana, Gold, and Soulstones for new runs.
+4. Mod compatibility fixes for broken skill tooltips and outdated buffs.
 
 ### [Workshop Screen Overhaul](chrono-ark-workshop-overhaul/)
 
-Overhauls the Workshop mod management screen with smoother scrolling, per-mod apply progress with timing, Select All toggle, shift-click range selection, and editable load order numbers.
+1. Smoother scrolling in the mod list.
+2. Per-mod apply progress with timing.
+3. Select All toggle for batch operations.
+4. Shift-click range selection.
+5. Editable load order numbers.
 
 ### [Mod Translation Injector](chrono-ark-mod-translation-injector/)
 
-Injects English translations for mod content at runtime. Patches the I2 Localization system for keyed overrides and replaces hardcoded CJK strings in UI text components.
+1. Reads keyed_overrides.json for localization key overrides.
+2. Reads text_overrides.json for hardcoded CJK string replacements.
 
 ## Building
 
