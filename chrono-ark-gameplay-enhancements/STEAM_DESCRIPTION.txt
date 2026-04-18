@@ -1,0 +1,62 @@
+[h1]Gameplay Enhancements[/h1]
+
+Performance, bug fix, and quality-of-life improvements for Chrono Ark.
+
+[h2]Bug Fixes[/h2]
+
+[list]
+[*] [b]Camp Recruit Button Fix[/b] — Fixes a rare base game bug where the Recruit button disappears from the campfire UI after saving and reloading at camp. The game's internal UI guard flag can become stale in the save data, hiding the button even when no character was actually recruited.
+[/list]
+
+[h2]Mod Compatibility Fixes[/h2]
+
+[list]
+[*] [b]Skill Tooltip Crash Protection[/b] — When a mod skill's tooltip throws an exception (e.g., from outdated field references), the game normally leaves a broken tooltip permanently stuck on screen. This mod catches the exception, cleans up the orphaned tooltip, and lets the game continue.
+[*] [b]Outdated Buff Graceful Degradation[/b] — Mod buffs compiled against older game versions may reference fields that have been renamed or retyped. Instead of crashing, a plain fallback buff is created with the correct data.
+[/list]
+
+[h2]Encyclopedia Optimization (opt-in)[/h2]
+
+The Encyclopedia / Collections screen normally freezes for several seconds while loading all tab data. Enable [b]Cache Encyclopedia[/b] in mod settings to eliminate that freeze with:
+
+[olist]
+[*] [b]Deferred tab initialization[/b] — Only the Character tab loads on open. Skill, Item, and Monster tabs load when first selected.
+[*] [b]Progress overlay[/b] — A full-screen overlay shows loading progress instead of a frozen screen.
+[*] [b]UI caching[/b] — After the first open, the Encyclopedia is cached in memory. Subsequent opens are instant.
+[/olist]
+
+[b]Warning:[/b] This caches the entire Encyclopedia UI into RAM. Your memory usage will increase significantly in exchange for instant opens and no lag.
+
+This feature is [b]disabled by default[/b]. Enable it in mod settings if you want faster Encyclopedia access.
+
+[h2]Configurable Starting Stats[/h2]
+
+Override starting resources for new runs via mod settings. Only applies to fresh runs, not loaded saves.
+
+[table]
+[tr]
+[th]Setting[/th]
+[th]Range[/th]
+[th]Default[/th]
+[/tr]
+[tr]
+[td]Cache Encyclopedia[/td]
+[td]Off / On[/td]
+[td]Off[/td]
+[/tr]
+[tr]
+[td]Starting Mana[/td]
+[td]1 - 10[/td]
+[td]3[/td]
+[/tr]
+[tr]
+[td]Starting Gold[/td]
+[td]0 - 1,000[/td]
+[td]0[/td]
+[/tr]
+[tr]
+[td]Starting Soulstones[/td]
+[td]0 - 25[/td]
+[td]0[/td]
+[/tr]
+[/table]

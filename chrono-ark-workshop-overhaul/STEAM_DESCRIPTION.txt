@@ -1,0 +1,13 @@
+[h1]Workshop Screen Overhaul[/h1]
+
+Overhauls the Workshop mod management screen with usability and performance improvements.
+
+[h2]Features[/h2]
+
+[olist]
+[*] [b]Smooth Scrolling[/b] — Replaces the default scroll-wheel handling with proportional scrolling. Each scroll tick moves a fixed amount regardless of list length, providing a consistent feel.
+[*] [b]Apply Progress Overlay[/b] — Shows per-mod progress when applying changes, with timing for each phase (unloading, loading, audio, schema updates, database rebuilds). No more staring at a frozen screen.
+[*] [b]Select All Toggle[/b] — Adds a Select All checkbox to enable or disable all currently visible mods in one click. Stays synced when individual mods are toggled.
+[*] [b]Shift-Click Range Selection[/b] — Hold Shift and click a mod's checkbox to select a range from the last-clicked mod. The range inherits the toggle state of the anchor mod, making it easy to enable or disable groups at once.
+[*] [b]Editable Load Order Numbers[/b] — Adds an editable input field to each mod showing its position number. Change the number to reorder mods instantly.
+[/olist]

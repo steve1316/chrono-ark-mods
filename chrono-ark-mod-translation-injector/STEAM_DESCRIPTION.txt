@@ -1,0 +1,157 @@
+[h1]Mod Translation Injector[/h1]
+
+Injects English translations for mod content in Chrono Ark at runtime. Supports both localization key overrides and direct hardcoded CJK string replacement.
+
+This mod is the successor to [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3427597117]Alternative English Translations[/url] ([url=https://github.com/steve1316/chrono-ark-alternative-english-translations]GitHub[/url]), which has been deprecated. The old approach relied on manually patching mod files with fragile scripts that broke whenever mods updated. This injector instead patches translations at runtime — no mod files are modified, and updates to mods don't break anything.
+
+[h2]Features[/h2]
+
+[olist]
+[*] [b]Keyed Localization Overrides[/b] — Reads [code]keyed_overrides.json[/code] to replace mod localization keys with English text. Handles skill names, descriptions, character names, passive descriptions, and more.
+[*] [b]Hardcoded Text Replacement[/b] — Reads [code]text_overrides.json[/code] to replace hardcoded CJK strings in UI text components with English translations. Covers TextMeshPro, legacy Text, and skill selection prompts.
+[/olist]
+
+[h2]Setup[/h2]
+
+Place your translation JSON files in the mod's folder alongside the DLL.
+
+[h3]keyed_overrides.json[/h3]
+
+Localization key overrides grouped by mod name:
+
+[code]
+{
+  "SomeMod": {
+    "Skill_FireBall_Name": "Fireball",
+    "Skill_FireBall_Desc": "Deals fire damage to a single enemy."
+  },
+  "AnotherMod": {
+    "Item_Potion_Name": "Healing Potion"
+  }
+}
+[/code]
+
+[h3]text_overrides.json[/h3]
+
+Hardcoded CJK string replacements grouped by mod name:
+
+[code]
+{
+  "SomeMod": {
+    "\u706b\u7403": "Fireball",
+    "\u653b\u51fb": "Attack"
+  }
+}
+[/code]
+
+The mod name keys are for organization only — all entries are flattened into a single lookup at load time.
+
+[h2]How Translations Are Made[/h2]
+
+Translations are generated using [b]Claude Sonnet 4.6[/b] via the [url=https://github.com/steve1316/chrono-ark-translator]Chrono Ark Translator[/url], a full-stack translation management tool built specifically for localizing Chrono Ark Workshop mods.
+
+The translator extracts strings from mod CSVs, DLLs, and GData JSON files, then processes them through AI with a two-tier glossary system — a global base-game glossary for consistent Chrono Ark terminology and per-mod custom glossaries for character-specific terms. Translations are processed in batches with glossary review between each batch to catch and correct terminology.
+
+Not all mods are purely machine-translated. Many have been manually reviewed and redone with reference to their source material (wiki pages, etc.) to ensure ability names and terms are accurate.
+
+In addition, some mods were good enough that only untranslated strings from their GData JSON files and DLL file were translated and the CSVs were kept in-tact.
+
+View [b]Supported Mods[/b] in the Discussions tab at the top of this page.
+
+[h2]Supported Mods[/h2]
+
+[i]Last updated: 2026-04-18[/i]
+
+88 mods currently supported.
+
+[list]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3356564235]AkiyamaMizuki[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2959784510]Amethyst[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3171514403]Amiya[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3462717261]Angela[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3394864036]Angelina[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3488516672]Aqua[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3609816315]Asuna[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3199257853]BlueArchive_Aris[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3188060193]Chtholly[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3241032742]CivilightEterna[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3505713172]Darkness[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3434126194]DCovBinah[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3368112468]dms[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2964838734]DwRuby[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3457671175]Feiyap[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3484764709]FGO_Altria_Alter[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3198048872]Frieren[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3489523161]Ganyu[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3484404265]GenshinHuTao[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3477022827]GenshinNahida[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3467870308]GFL_Fairy[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3373176962]gmyls[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3213094514]grayreaper[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3421495628]GreaAnne[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3222505203]HatsuneMiku[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3187834450]Hibiki[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3425482717]IntegratedStrategies[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3258003057]IzayoiSakuya[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3252036888]Jefuty[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2945988662]Kali_CharacterMod[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3390488089]kiana[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3610200937]Kirito[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3029711049]Kiseki[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3623775589]KosakaWakamo[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3256187613]Labyrinth[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3472718374]LibraryOfRuinaYan[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3161033197]Lumiore[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3357654525]Mari[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3183519242]MiyuMod[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3405044235]MizuharaAina[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3487426100]Mlynar[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3433980391]Mousse_Z[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3271319680]Muelsyse[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3311651870]NamieFamily[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3336385543]Narukami_Yu[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3241958054]Noa[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3691887504]OtherworldInvestigatorAbigail[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3499555341]OtherworldInvestigatorAdina[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3669026637]OtherworldInvestigatorChloe[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3600603788]OtherworldInvestigatorDebiMarlene[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3456082503]OtherworldInvestigatorLiDailin[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3485686904]OtherworldInvestigatorSissela[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3473710518]OtherworldInvestigatorSua[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3617021349]OtherworldInvestigatorTia[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3545973401]Phrolova[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3253222988]PLANA[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3252080133]Poca[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3469282940]ProjectMXCaiYu[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3618741727]QoH[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3138055448]Ralmia[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3457259104]Raphi[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2945863327]Roland[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3222287755]Rosmontis[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3341672394]Ruby_Rose[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3341260847]saber[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3601887231]Sakuraba[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3265057595]Schwarz[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3504737531]Sorasaki Hina[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3560391806]Sparkle[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3087426934]SuzakuinMomiji[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3368574047]SuzakuinNadeshiko[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3236444921]SuzakuinTsubaki[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3427049098]szb_Orchis[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3470122051]Tamaki_Iroha_Mod[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2976594991]Tiamat[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3344731895]Toujyou[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3060591218]Turquoise[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3409739335]Viviana[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3512180536]XiaoLOR[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3310028551]Yeqi_[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3103613947]ysml[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3182287364]Yuuka[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3268189685]Yuzu[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3602903432]ZenaBaral[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3155337705]“店长” 'ShopKeeper'[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2948432436]暝 Dusk[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3016820036]汐 Tide[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2973297969]虹 Rainbow[/url]
+[/list]
+<!-- END SUPPORTED MODS -->
