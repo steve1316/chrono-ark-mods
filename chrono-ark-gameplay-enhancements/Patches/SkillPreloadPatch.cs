@@ -34,6 +34,7 @@ namespace GameplayEnhancements.Patches
 
         static void Postfix(SKillCollection __instance)
         {
+            if (!Plugin.CollectionsOptimizationEnabled) return;
             _skillAddMethod = AccessTools.Method(typeof(SKillCollection), "SkillAdd");
             if (_skillAddMethod == null)
             {
@@ -125,6 +126,7 @@ namespace GameplayEnhancements.Patches
     {
         static bool Prefix(CharSelect_CampUI __instance)
         {
+            if (!Plugin.CollectionsOptimizationEnabled) return true;
             __instance.StartCoroutine(OpenProfileWithOverlay(__instance));
             return false;
         }
@@ -160,6 +162,7 @@ namespace GameplayEnhancements.Patches
     {
         static bool Prefix(CharSelectMainUIV2 __instance)
         {
+            if (!Plugin.CollectionsOptimizationEnabled) return true;
             __instance.StartCoroutine(OpenProfileWithOverlay(__instance));
             return false;
         }

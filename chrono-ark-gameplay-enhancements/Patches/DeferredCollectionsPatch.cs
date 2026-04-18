@@ -45,6 +45,7 @@ namespace GameplayEnhancements.Patches
         {
             static bool Prefix(SKillCollection __instance)
             {
+                if (!Plugin.CollectionsOptimizationEnabled) return true;
                 if (_bypassSkill) return true;
                 if (IsOnceCollections(__instance)) return true;
 
@@ -63,6 +64,7 @@ namespace GameplayEnhancements.Patches
         {
             static bool Prefix(ItemCollection __instance)
             {
+                if (!Plugin.CollectionsOptimizationEnabled) return true;
                 if (_bypassItem) return true;
                 if (IsOnceCollections(__instance)) return true;
 
@@ -81,6 +83,7 @@ namespace GameplayEnhancements.Patches
         {
             static bool Prefix(MonsterCollection __instance)
             {
+                if (!Plugin.CollectionsOptimizationEnabled) return true;
                 if (_bypassMonster) return true;
                 if (IsOnceCollections(__instance)) return true;
 
@@ -109,6 +112,7 @@ namespace GameplayEnhancements.Patches
         {
             static void Postfix()
             {
+                if (!Plugin.CollectionsOptimizationEnabled) return;
                 CacheStartMethods();
             }
         }
@@ -121,6 +125,7 @@ namespace GameplayEnhancements.Patches
         {
             static void Prefix(int __0)
             {
+                if (!Plugin.CollectionsOptimizationEnabled) return;
                 switch (__0)
                 {
                     case 1: InitializeDeferredSkill(); break;

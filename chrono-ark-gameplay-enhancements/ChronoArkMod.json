@@ -7,6 +7,14 @@
     "Cover": "",
     "ModSettingEntries": [
         {
+            "SettingType": "DropdownSetting",
+            "SettingKey": "CollectionsOptimization",
+            "DisplayName": "Cache Encyclopedia",
+            "Description": "Caches the Encyclopedia UI and defers tab loading to eliminate freezes. Experimental — disable if the Encyclopedia behaves oddly.",
+            "InitValue": 0,
+            "Options": ["Off", "On"]
+        },
+        {
             "SettingType": "SliderSetting",
             "SettingKey": "StartingMana",
             "DisplayName": "Starting Mana",

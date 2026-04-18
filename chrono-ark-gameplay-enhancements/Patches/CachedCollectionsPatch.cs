@@ -78,6 +78,7 @@ namespace GameplayEnhancements.Patches
         {
             static bool Prefix()
             {
+                if (!Plugin.CollectionsOptimizationEnabled) return true;
                 if (_bypassOpen) return true;
 
                 if (_cached != null)
@@ -198,6 +199,12 @@ namespace GameplayEnhancements.Patches
         /// </summary>
         public static void DestroyOrCache(UnityEngine.Object obj)
         {
+            if (!Plugin.CollectionsOptimizationEnabled)
+            {
+                UnityEngine.Object.Destroy(obj);
+                return;
+            }
+
             if (obj is GameObject go)
             {
                 var collections = go.GetComponent<Collections>();
@@ -267,6 +274,7 @@ namespace GameplayEnhancements.Patches
         {
             static void Postfix(Collections __instance)
             {
+                if (!Plugin.CollectionsOptimizationEnabled) return;
                 if (_cached != null && _cached != __instance)
                 {
                     Debug.Log($"{Tag} New Collections instance created, clearing stale cache");

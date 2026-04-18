@@ -1,3 +1,5 @@
+using ChronoArkMod;
+using ChronoArkMod.ModData.Settings;
 using ChronoArkMod.Plugin;
 using GameplayEnhancements.Patches;
 using GameplayEnhancements.PerfDebug;
@@ -12,6 +14,21 @@ namespace GameplayEnhancements
         internal static Harmony HarmonyInstance;
 
         private GameObject _perfDebugGo;
+
+        /// <summary>
+        /// Returns whether the Collections optimization is enabled.
+        /// Dropdown index 0 = Off, 1 = On.
+        /// </summary>
+        internal static bool CollectionsOptimizationEnabled
+        {
+            get
+            {
+                var modInfo = ModManager.getModInfo("GameplayEnhancements");
+                if (modInfo == null) return false;
+                var dropdown = modInfo.GetSetting<DropdownSetting>("CollectionsOptimization");
+                return dropdown != null && dropdown.Value == 1;
+            }
+        }
 
         /// <summary>
         /// Applies all Harmony patches when the mod is loaded.
