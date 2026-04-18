@@ -4,7 +4,7 @@ Performance and quality-of-life improvements for Chrono Ark gameplay.
 
 ## Features
 
-### Collections UI Performance
+### Collections UI Performance (opt-in)
 
 The Encyclopedia / Collections screen (opened via TAB or character profile) normally freezes for several seconds while loading all tab data synchronously. This mod eliminates that freeze with three techniques:
 
@@ -17,15 +17,22 @@ All three entry points are covered:
 - Character profile from the camp screen (`CharSelect_CampUI.OpenProfile`).
 - Character profile from the character selection screen (`CharSelectMainUIV2.OpenProfile`).
 
+This feature is **disabled by default** and can be enabled via the "Cache Encyclopedia" dropdown in mod settings.
+
 ### Configurable Starting Stats
 
 Override the default starting Mana, Gold, and Soulstones for new runs via mod settings. Only applies to fresh runs, not loaded saves.
 
 | Setting | Range | Default |
 |---------|-------|---------|
+| Cache Encyclopedia | Off / On | Off |
 | Starting Mana | 1 - 10 | 3 |
 | Starting Gold | 0 - 1,000 | 0 |
 | Starting Soulstones | 0 - 25 | 0 |
+
+### Bug Fixes
+
+- **Camp recruit button fix.** Fixes a rare base game bug where the Recruit button disappears from the campfire UI after saving and reloading at camp. The game's `AddParty` UI guard flag can become stale in the save data, persisting as true even when no character was actually recruited.
 
 ### Mod Compatibility Fixes
 

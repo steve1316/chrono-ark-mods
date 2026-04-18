@@ -2,7 +2,7 @@
     "id": "GameplayEnhancements",
     "Title": "Gameplay Enhancements",
     "Author": "steve1316",
-    "Description": "Performance and quality-of-life improvements for gameplay. Eliminates Encyclopedia freezes by pre-loading skill data behind a progress overlay, caching the Collections UI across open/close cycles for instant reopens, and deferring non-visible tab initialization. Configurable starting Mana, Gold, and Soulstones for new runs.",
+    "Description": "Performance, bug fix, and quality-of-life improvements for gameplay. Optionally eliminates Encyclopedia freezes via UI caching and deferred tab loading. Fixes the camp recruit button disappearing after save/load. Configurable starting Mana, Gold, and Soulstones for new runs.",
     "Version": "1.0.0",
     "Cover": "",
     "ModSettingEntries": [

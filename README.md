@@ -6,7 +6,7 @@ A collection of quality-of-life and performance mods for [Chrono Ark](https://st
 
 ### [Gameplay Enhancements](chrono-ark-gameplay-enhancements/)
 
-Performance and quality-of-life improvements for gameplay. Eliminates Encyclopedia freezes by pre-loading skill data behind a progress overlay, caching the Collections UI for instant reopens, and deferring non-visible tab initialization. Includes configurable starting Mana, Gold, and Soulstones.
+Performance, bug fix, and quality-of-life improvements for gameplay. Optionally eliminates Encyclopedia freezes via UI caching and deferred tab loading. Fixes the camp recruit button disappearing after save/load. Includes configurable starting Mana, Gold, and Soulstones.
 
 ### [Workshop Screen Overhaul](chrono-ark-workshop-overhaul/)
 
