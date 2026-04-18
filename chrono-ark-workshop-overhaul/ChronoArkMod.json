@@ -1,7 +1,7 @@
 {
     "id": "WorkshopOverhaul",
     "Title": "Workshop Screen Overhaul",
-    "Author": "steve1316",
+    "Author": "Dante",
     "Description": "1. Smoother scrolling in the mod list.\n2. Per-mod apply progress with timing.\n3. Select All toggle for batch operations.\n4. Shift-click range selection.\n5. Editable load order numbers.",
     "Version": "1.0.0",
     "Cover": "",
@@ -11,7 +11,7 @@
     "NeedRestartWhenSettingChanged": false,
     "NeedReloadAllWhenEnabled": false,
     "NeedRestartWhenEnabled": true,
-    "Uploader": "steve1316",
+    "Uploader": "Dante",
     "TagList": ["QoL"],
     "Visibility": "Public",
     "OnlyUploadFiles": true

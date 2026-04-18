@@ -1,7 +1,7 @@
 {
     "id": "GameplayEnhancements",
     "Title": "Gameplay Enhancements",
-    "Author": "steve1316",
+    "Author": "Dante",
     "Description": "1. Fixes the camp recruit button disappearing after save/load.\n2. Optionally caches the Encyclopedia UI and defers tab loading to eliminate freezes.\n3. Configurable starting Mana, Gold, and Soulstones for new runs.\n4. Mod compatibility fixes for broken skill tooltips and outdated buffs.",
     "Version": "1.0.0",
     "Cover": "",
@@ -50,7 +50,7 @@
     "NeedRestartWhenSettingChanged": false,
     "NeedReloadAllWhenEnabled": false,
     "NeedRestartWhenEnabled": true,
-    "Uploader": "steve1316",
+    "Uploader": "Dante",
     "TagList": ["QoL"],
     "Visibility": "Public",
     "OnlyUploadFiles": true
