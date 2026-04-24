@@ -31,7 +31,7 @@ namespace ModTranslationInjector.Patches
             string jsonPath = LocalizationInjector.GetModFilePath(OverridesFileName);
             if (jsonPath == null || !File.Exists(jsonPath))
             {
-                Debug.Log($"[ModTranslationInjector] {OverridesFileName} not found, skipping");
+                Debug.LogWarning($"[ModTranslationInjector] {OverridesFileName} not found, skipping");
                 return;
             }
 

@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
+using ChronoArkMod;
+using ChronoArkMod.ModData;
 using GameDataEditor;
 using HarmonyLib;
 using I2.Loc;
@@ -32,7 +33,7 @@ namespace ModTranslationInjector.Patches
             string jsonPath = GetModFilePath(OverridesFileName);
             if (jsonPath == null || !File.Exists(jsonPath))
             {
-                Debug.Log($"[ModTranslationInjector] {OverridesFileName} not found");
+                Debug.LogWarning($"[ModTranslationInjector] {OverridesFileName} not found");
                 return;
             }
 
@@ -182,37 +183,25 @@ namespace ModTranslationInjector.Patches
         /// </summary>
         internal static string GetModFilePath(string fileName)
         {
+            // Assembly.Location is empty because the game loads mod DLLs via Assembly.Load(byte[]),
+            // so ModInfo.DirectoryName from ModManager is the only path that works for both local
+            // and Workshop installs.
             try
             {
-                string gameRoot = Path.GetDirectoryName(Application.dataPath);
-                string modDir = Path.Combine(gameRoot, "Mod", "ModTranslationInjector");
-                string candidate = Path.Combine(modDir, fileName);
-                if (File.Exists(candidate))
-                    return candidate;
-            }
-            catch (Exception)
-            {
-                // Fall through.
-            }
-
-            try
-            {
-                string asmLocation = Assembly.GetExecutingAssembly().Location;
-                if (!string.IsNullOrEmpty(asmLocation))
+                ModInfo info = ModManager.getModInfo("ModTranslationInjector");
+                if (!string.IsNullOrEmpty(info?.DirectoryName))
                 {
-                    string asmDir = Path.GetDirectoryName(asmLocation);
-                    string modDir = Path.GetDirectoryName(asmDir);
-                    string candidate = Path.Combine(modDir, fileName);
+                    string candidate = Path.Combine(info.DirectoryName, fileName);
                     if (File.Exists(candidate))
                         return candidate;
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Assembly location not available.
+                Debug.LogWarning($"[ModTranslationInjector] ModInfo lookup failed: {ex.Message}");
             }
 
-            Debug.LogWarning($"[ModTranslationInjector] Could not find {fileName} in any known location");
+            Debug.LogWarning($"[ModTranslationInjector] Could not find {fileName} via ModInfo.DirectoryName");
             return null;
         }
     }
